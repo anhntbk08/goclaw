@@ -41,7 +41,7 @@ export function AgentCreateDialog({ open, onOpenChange, onCreate }: AgentCreateD
   const [displayName, setDisplayName] = useState("");
   const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
-  const [agentType, setAgentType] = useState<"open" | "predefined">("open");
+  const [agentType, setAgentType] = useState<"open" | "predefined">("predefined");
   const [description, setDescription] = useState("");
   const [selfEvolve, setSelfEvolve] = useState(false);
   const [loading, setLoading] = useState(false);
