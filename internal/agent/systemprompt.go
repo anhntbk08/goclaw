@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"strings"
 
 	"github.com/nextlevelbuilder/goclaw/internal/bootstrap"
@@ -64,6 +65,7 @@ var coreToolSummaries = map[string]string{
 	"web_fetch":     "Fetch and extract content from a URL",
 	"cron":          "Manage scheduled jobs and reminders",
 	"skill_search":     "Search available skills by keyword (weather, translate, github, etc.)",
+	"use_skill":        "Invoke a skill by name and follow its instructions",
 	"mcp_tool_search":  "Search for available MCP external integration tools by keyword",
 	"browser":          "Browse web pages interactively",
 	"tts":              "Convert text to speech audio",
@@ -86,6 +88,17 @@ var coreToolSummaries = map[string]string{
 	"delegate_search":         "Search for agents by expertise to find the right delegation target",
 	"team_tasks":              "Manage team task board (list, create, complete, cancel tasks)",
 	"team_message":            "Send messages to teammates (progress updates, questions)",
+
+	// Claude Code tool aliases — enable Claude Code skills without modification
+	"Read":       "Alias for read_file — Read file contents",
+	"Write":      "Alias for write_file — Create or overwrite files",
+	"Edit":       "Alias for edit — Edit a file by replacing exact text matches",
+	"Bash":       "Alias for exec — Run shell commands",
+	"WebFetch":   "Alias for web_fetch — Fetch and extract content from a URL",
+	"WebSearch":  "Alias for web_search — Search the web",
+	"Agent":      "Alias for spawn — Spawn a subagent or delegate to another agent",
+	"Skill":      "Alias for use_skill — Invoke a skill by name",
+	"ToolSearch": "Alias for mcp_tool_search — Search for available MCP tools",
 }
 
 // BuildSystemPrompt constructs the full system prompt with all sections.
@@ -281,13 +294,32 @@ func buildToolingSection(toolNames []string, hasSandbox bool) []string {
 		)
 	}
 
-	// Runtime package installation hints (applies to both host and sandbox)
+	// Runtime package installation hints — only show when runtimes are available
+	hasPython := hasBinary("python3")
+	hasNode := hasBinary("node")
+	if hasPython || hasNode {
+		var pkgs []string
+		if hasPython {
+			pkgs = append(pkgs, "python3", "pypdf", "openpyxl", "pandas", "python-pptx", "markitdown")
+		}
+		if hasNode {
+			pkgs = append(pkgs, "node", "docx (npm)", "pptxgenjs (npm)")
+		}
+		if hasBinary("gh") {
+			pkgs = append(pkgs, "gh (GitHub CLI)")
+		}
+		if hasBinary("pandoc") {
+			pkgs = append(pkgs, "pandoc")
+		}
+		lines = append(lines,
+			"",
+			"## Package installation",
+			"Pre-installed: "+strings.Join(pkgs, ", ")+".",
+			"To install additional packages at runtime: `pip3 install <package>` or `npm install -g <package>` — both work without sudo.",
+			"Installed packages persist across tool calls within the same session.",
+		)
+	}
 	lines = append(lines,
-		"",
-		"## Package installation",
-		"Pre-installed: python3, node, gh (GitHub CLI), pypdf, openpyxl, pandas, python-pptx, markitdown, docx (npm), pptxgenjs (npm), pandoc.",
-		"To install additional packages at runtime: `pip3 install <package>` or `npm install -g <package>` — both work without sudo.",
-		"Installed packages persist across tool calls within the same session.",
 		"",
 		"TOOLS.md (if present in workspace) is user guidance — it does NOT control tool availability.",
 		"Do not poll subagents or sessions in loops; completion is push-based.",
@@ -413,5 +445,10 @@ func buildWorkspaceSection(workspace string, sandboxEnabled bool, containerDir s
 		guidance,
 		"",
 	}
+}
+
+func hasBinary(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
 }
 

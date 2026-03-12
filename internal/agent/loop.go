@@ -56,16 +56,7 @@ func (l *Loop) runLoop(ctx context.Context, req RunRequest) (*RunResult, error) 
 	if req.SenderID != "" {
 		ctx = store.WithSenderID(ctx, req.SenderID)
 	}
-	// Inject per-agent vision/imagegen config for read_image/create_image tools
-	if l.agentToolPolicy != nil {
-		if l.agentToolPolicy.Vision != nil {
-			ctx = tools.WithVisionConfig(ctx, l.agentToolPolicy.Vision)
-		}
-		if l.agentToolPolicy.ImageGen != nil {
-			ctx = tools.WithImageGenConfig(ctx, l.agentToolPolicy.ImageGen)
-		}
-	}
-	// Inject global builtin tool settings (DB-level defaults, lower priority than per-agent)
+	// Inject global builtin tool settings for media tools (provider chain)
 	if l.builtinToolSettings != nil {
 		ctx = tools.WithBuiltinToolSettings(ctx, l.builtinToolSettings)
 	}
@@ -268,6 +259,8 @@ func (l *Loop) runLoop(ctx context.Context, req RunRequest) (*RunResult, error) 
 	}
 	if len(audioRefs) > 0 {
 		ctx = tools.WithMediaAudioRefs(ctx, audioRefs)
+		// Embed media IDs into <media:audio> tags so LLM can reference them.
+		l.enrichAudioIDs(messages, mediaRefs)
 	}
 
 	// 2d. Collect video MediaRefs (historical + current) for read_video tool.
