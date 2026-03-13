@@ -27,6 +27,13 @@ const (
 	ctxSessionKey  toolContextKey = "tool_session_key" // origin session key for announce routing
 )
 
+// Well-known channel names used for routing and access control.
+const (
+	ChannelSystem    = "system"
+	ChannelDashboard = "dashboard"
+	ChannelDelegate  = "delegate"
+)
+
 func WithToolChannel(ctx context.Context, channel string) context.Context {
 	return context.WithValue(ctx, ctxChannel, channel)
 }

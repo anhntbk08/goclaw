@@ -19,7 +19,6 @@ export function useTeamWorkspace() {
         setFiles(res.files ?? []);
         return res.files ?? [];
       } catch {
-        setFiles([]);
         return [];
       } finally {
         setLoading(false);

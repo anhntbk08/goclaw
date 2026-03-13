@@ -10,22 +10,22 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/nextlevelbuilder/goclaw/internal/store"
 )
 
 // Workspace limits shared across read/write tools.
 const defaultQuotaMB = 500
 
 // workspaceDir returns the disk directory for a team workspace scope.
-// Pattern: {dataDir}/teams/{teamID}/{channel}/{chatID}/
+// Pattern: {dataDir}/teams/{teamID}/{chatID}/
+// chatID is the system-derived userID (stable across WS reconnects).
 // Creates directory with 0750 if not exists.
-func workspaceDir(dataDir string, teamID uuid.UUID, channel, chatID string) (string, error) {
-	if channel == "" {
-		channel = "_default"
-	}
+func workspaceDir(dataDir string, teamID uuid.UUID, _, chatID string) (string, error) {
 	if chatID == "" {
 		chatID = "_default"
 	}
-	dir := filepath.Join(dataDir, "teams", teamID.String(), channel, chatID)
+	dir := filepath.Join(dataDir, "teams", teamID.String(), chatID)
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create workspace dir: %w", err)
 	}
@@ -130,17 +130,15 @@ func isBinaryMime(mimeType string) bool {
 }
 
 // resolveWorkspaceScope resolves the workspace scope (channel, chatID) for tools.
-// Priority: WorkspaceChannel/ChatID context keys (set during delegation) > ToolChannel/ChatID
+// Scope is (team_id, userID) where userID is the system-derived stable user ID.
+// channel is always "" (kept for signature compatibility); chatID = userID.
+// Priority: WorkspaceChatID context key (set during delegation) > store.UserIDFromContext
 func resolveWorkspaceScope(ctx context.Context) (channel, chatID string) {
-	channel = WorkspaceChannelFromCtx(ctx)
 	chatID = WorkspaceChatIDFromCtx(ctx)
-	if channel == "" {
-		channel = ToolChannelFromCtx(ctx)
-	}
 	if chatID == "" {
-		chatID = ToolChatIDFromCtx(ctx)
+		chatID = store.UserIDFromContext(ctx)
 	}
-	return
+	return "", chatID
 }
 
 // workspaceSettings parses workspace-related fields from team settings JSON once.
@@ -186,10 +184,9 @@ func resolveWorkspaceScopeFromArgs(ctx context.Context, args map[string]any, ws 
 		if !ws.isShared() {
 			return "", "", "team workspace_scope is 'isolated' — set to 'shared' in team settings to use scope=team"
 		}
-		channel = ""
 		chatID = ""
 	}
-	return channel, chatID, ""
+	return "", chatID, ""
 }
 
 // validTags is the set of allowed tag values.

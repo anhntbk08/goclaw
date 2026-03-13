@@ -41,8 +41,8 @@ func (s *PGTeamStore) UpsertWorkspaceFile(ctx context.Context, file *store.TeamW
 	}
 	defer tx.Rollback()
 
-	// Advisory lock on hash of team_id||file_name to prevent concurrent writes.
-	lockKey := file.TeamID.String() + ":" + file.Channel + ":" + file.ChatID + ":" + file.FileName
+	// Advisory lock on hash of team_id:chatID:file_name to prevent concurrent writes.
+	lockKey := file.TeamID.String() + ":" + file.ChatID + ":" + file.FileName
 	var locked bool
 	if err := tx.QueryRowContext(ctx,
 		`SELECT pg_try_advisory_xact_lock(hashtext($1))`, lockKey,
@@ -53,11 +53,11 @@ func (s *PGTeamStore) UpsertWorkspaceFile(ctx context.Context, file *store.TeamW
 		return false, store.ErrFileLocked
 	}
 
-	// Check if file already exists.
+	// Check if file already exists (scope: team_id + chat_id).
 	var existingID uuid.UUID
 	err = tx.QueryRowContext(ctx,
-		`SELECT id FROM team_workspace_files WHERE team_id = $1 AND channel = $2 AND chat_id = $3 AND file_name = $4`,
-		file.TeamID, file.Channel, file.ChatID, file.FileName,
+		`SELECT id FROM team_workspace_files WHERE team_id = $1 AND chat_id = $2 AND file_name = $3`,
+		file.TeamID, file.ChatID, file.FileName,
 	).Scan(&existingID)
 
 	isNew := err == sql.ErrNoRows
@@ -98,15 +98,15 @@ func (s *PGTeamStore) UpsertWorkspaceFile(ctx context.Context, file *store.TeamW
 	return isNew, tx.Commit()
 }
 
-func (s *PGTeamStore) GetWorkspaceFile(ctx context.Context, teamID uuid.UUID, channel, chatID, fileName string) (*store.TeamWorkspaceFileData, error) {
+func (s *PGTeamStore) GetWorkspaceFile(ctx context.Context, teamID uuid.UUID, _, chatID, fileName string) (*store.TeamWorkspaceFileData, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT f.id, f.team_id, f.channel, f.chat_id, f.file_name, f.mime_type, f.file_path, f.size_bytes,
 		        f.uploaded_by, f.task_id, f.pinned, f.tags, f.metadata, f.archived_at, f.created_at, f.updated_at,
 		        COALESCE(a.agent_key, '') AS uploaded_by_key
 		 FROM team_workspace_files f
 		 LEFT JOIN agents a ON a.id = f.uploaded_by
-		 WHERE f.team_id = $1 AND f.channel = $2 AND f.chat_id = $3 AND f.file_name = $4`,
-		teamID, channel, chatID, fileName,
+		 WHERE f.team_id = $1 AND f.chat_id = $2 AND f.file_name = $3`,
+		teamID, chatID, fileName,
 	)
 	f, err := scanWorkspaceFile(row)
 	if err == sql.ErrNoRows {
@@ -118,15 +118,14 @@ func (s *PGTeamStore) GetWorkspaceFile(ctx context.Context, teamID uuid.UUID, ch
 	return &f, nil
 }
 
-func (s *PGTeamStore) ListWorkspaceFiles(ctx context.Context, teamID uuid.UUID, channel, chatID string) ([]store.TeamWorkspaceFileData, error) {
-	// When both channel and chat_id are empty the caller wants all files for
-	// the team (used by the Workspace UI tab).  When at least one is non-empty
-	// filter to that exact scope.
+func (s *PGTeamStore) ListWorkspaceFiles(ctx context.Context, teamID uuid.UUID, _, chatID string) ([]store.TeamWorkspaceFileData, error) {
+	// When chatID is empty the caller wants all files for the team (used by
+	// the Workspace UI tab). When non-empty, filter to that user scope.
 	var (
 		rows *sql.Rows
 		err  error
 	)
-	if channel == "" && chatID == "" {
+	if chatID == "" {
 		rows, err = s.db.QueryContext(ctx,
 			`SELECT f.id, f.team_id, f.channel, f.chat_id, f.file_name, f.mime_type, f.file_path, f.size_bytes,
 			        f.uploaded_by, f.task_id, f.pinned, f.tags, f.metadata, f.archived_at, f.created_at, f.updated_at,
@@ -144,9 +143,9 @@ func (s *PGTeamStore) ListWorkspaceFiles(ctx context.Context, teamID uuid.UUID, 
 			        COALESCE(a.agent_key, '') AS uploaded_by_key
 			 FROM team_workspace_files f
 			 LEFT JOIN agents a ON a.id = f.uploaded_by
-			 WHERE f.team_id = $1 AND f.channel = $2 AND f.chat_id = $3 AND f.archived_at IS NULL
+			 WHERE f.team_id = $1 AND f.chat_id = $2 AND f.archived_at IS NULL
 			 ORDER BY f.pinned DESC, f.updated_at DESC`,
-			teamID, channel, chatID,
+			teamID, chatID,
 		)
 	}
 	if err != nil {
@@ -156,11 +155,11 @@ func (s *PGTeamStore) ListWorkspaceFiles(ctx context.Context, teamID uuid.UUID, 
 	return scanWorkspaceFileRows(rows)
 }
 
-func (s *PGTeamStore) DeleteWorkspaceFile(ctx context.Context, teamID uuid.UUID, channel, chatID, fileName string) (string, error) {
+func (s *PGTeamStore) DeleteWorkspaceFile(ctx context.Context, teamID uuid.UUID, _, chatID, fileName string) (string, error) {
 	var filePath string
 	err := s.db.QueryRowContext(ctx,
-		`DELETE FROM team_workspace_files WHERE team_id = $1 AND channel = $2 AND chat_id = $3 AND file_name = $4 RETURNING file_path`,
-		teamID, channel, chatID, fileName,
+		`DELETE FROM team_workspace_files WHERE team_id = $1 AND chat_id = $2 AND file_name = $3 RETURNING file_path`,
+		teamID, chatID, fileName,
 	).Scan(&filePath)
 	if err == sql.ErrNoRows {
 		return "", fmt.Errorf("workspace file %q not found", fileName)
@@ -168,19 +167,19 @@ func (s *PGTeamStore) DeleteWorkspaceFile(ctx context.Context, teamID uuid.UUID,
 	return filePath, err
 }
 
-func (s *PGTeamStore) CountWorkspaceFiles(ctx context.Context, teamID uuid.UUID, channel, chatID string) (int, error) {
+func (s *PGTeamStore) CountWorkspaceFiles(ctx context.Context, teamID uuid.UUID, _, chatID string) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM team_workspace_files WHERE team_id = $1 AND channel = $2 AND chat_id = $3 AND archived_at IS NULL`,
-		teamID, channel, chatID,
+		`SELECT COUNT(*) FROM team_workspace_files WHERE team_id = $1 AND chat_id = $2 AND archived_at IS NULL`,
+		teamID, chatID,
 	).Scan(&count)
 	return count, err
 }
 
-func (s *PGTeamStore) PinWorkspaceFile(ctx context.Context, teamID uuid.UUID, channel, chatID, fileName string, pinned bool) error {
+func (s *PGTeamStore) PinWorkspaceFile(ctx context.Context, teamID uuid.UUID, _, chatID, fileName string, pinned bool) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE team_workspace_files SET pinned = $1, updated_at = $2 WHERE team_id = $3 AND channel = $4 AND chat_id = $5 AND file_name = $6`,
-		pinned, time.Now(), teamID, channel, chatID, fileName,
+		`UPDATE team_workspace_files SET pinned = $1, updated_at = $2 WHERE team_id = $3 AND chat_id = $4 AND file_name = $5`,
+		pinned, time.Now(), teamID, chatID, fileName,
 	)
 	if err != nil {
 		return err
@@ -192,10 +191,10 @@ func (s *PGTeamStore) PinWorkspaceFile(ctx context.Context, teamID uuid.UUID, ch
 	return nil
 }
 
-func (s *PGTeamStore) TagWorkspaceFile(ctx context.Context, teamID uuid.UUID, channel, chatID, fileName string, tags []string) error {
+func (s *PGTeamStore) TagWorkspaceFile(ctx context.Context, teamID uuid.UUID, _, chatID, fileName string, tags []string) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE team_workspace_files SET tags = $1, updated_at = $2 WHERE team_id = $3 AND channel = $4 AND chat_id = $5 AND file_name = $6`,
-		pq.Array(tags), time.Now(), teamID, channel, chatID, fileName,
+		`UPDATE team_workspace_files SET tags = $1, updated_at = $2 WHERE team_id = $3 AND chat_id = $4 AND file_name = $5`,
+		pq.Array(tags), time.Now(), teamID, chatID, fileName,
 	)
 	if err != nil {
 		return err
@@ -207,16 +206,16 @@ func (s *PGTeamStore) TagWorkspaceFile(ctx context.Context, teamID uuid.UUID, ch
 	return nil
 }
 
-func (s *PGTeamStore) ListDeliverableFiles(ctx context.Context, teamID uuid.UUID, channel, chatID string) ([]store.TeamWorkspaceFileData, error) {
+func (s *PGTeamStore) ListDeliverableFiles(ctx context.Context, teamID uuid.UUID, _, chatID string) ([]store.TeamWorkspaceFileData, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT f.id, f.team_id, f.channel, f.chat_id, f.file_name, f.mime_type, f.file_path, f.size_bytes,
 		        f.uploaded_by, f.task_id, f.pinned, f.tags, f.metadata, f.archived_at, f.created_at, f.updated_at,
 		        COALESCE(a.agent_key, '') AS uploaded_by_key
 		 FROM team_workspace_files f
 		 LEFT JOIN agents a ON a.id = f.uploaded_by
-		 WHERE f.team_id = $1 AND f.channel = $2 AND f.chat_id = $3 AND 'deliverable' = ANY(f.tags) AND f.archived_at IS NULL
+		 WHERE f.team_id = $1 AND f.chat_id = $2 AND 'deliverable' = ANY(f.tags) AND f.archived_at IS NULL
 		 ORDER BY f.updated_at DESC`,
-		teamID, channel, chatID,
+		teamID, chatID,
 	)
 	if err != nil {
 		return nil, err
@@ -251,12 +250,12 @@ func (s *PGTeamStore) ListOrphanWorkspaceFiles(ctx context.Context, teamID uuid.
 	return scanWorkspaceFileRows(rows)
 }
 
-func (s *PGTeamStore) CopyFilesToTeam(ctx context.Context, fileIDs []uuid.UUID, targetTeamID uuid.UUID, targetChannel, targetChatID, dataDir string) error {
+func (s *PGTeamStore) CopyFilesToTeam(ctx context.Context, fileIDs []uuid.UUID, targetTeamID uuid.UUID, _, targetChatID, dataDir string) error {
 	if len(fileIDs) == 0 {
 		return nil
 	}
 
-	targetDir := filepath.Join(dataDir, "teams", targetTeamID.String(), targetChannel, targetChatID)
+	targetDir := filepath.Join(dataDir, "teams", targetTeamID.String(), targetChatID)
 	if err := os.MkdirAll(targetDir, 0750); err != nil {
 		return fmt.Errorf("failed to create target workspace dir: %w", err)
 	}
@@ -292,10 +291,10 @@ func (s *PGTeamStore) CopyFilesToTeam(ctx context.Context, fileIDs []uuid.UUID, 
 		now := time.Now()
 		_, _ = s.db.ExecContext(ctx,
 			`INSERT INTO team_workspace_files (id, team_id, channel, chat_id, file_name, mime_type, file_path, size_bytes, uploaded_by, pinned, tags, created_at, updated_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-			 ON CONFLICT (team_id, channel, chat_id, file_name) DO UPDATE SET
+			 VALUES ($1, $2, '', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			 ON CONFLICT (team_id, chat_id, file_name) DO UPDATE SET
 			   file_path = EXCLUDED.file_path, size_bytes = EXCLUDED.size_bytes, updated_at = EXCLUDED.updated_at`,
-			newID, targetTeamID, targetChannel, targetChatID, src.FileName,
+			newID, targetTeamID, targetChatID, src.FileName,
 			sql.NullString{String: src.MimeType, Valid: src.MimeType != ""},
 			destPath, src.SizeBytes, src.UploadedBy, false, pq.Array(src.Tags), now, now,
 		)

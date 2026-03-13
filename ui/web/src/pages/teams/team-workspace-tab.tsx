@@ -10,6 +10,7 @@ import {
 import { RefreshCw, Trash2, FileText, Pin } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { useTranslation } from "react-i18next";
+import { useMinLoading } from "@/hooks/use-min-loading";
 import { useTeamWorkspace } from "./hooks/use-team-workspace";
 import type { TeamWorkspaceFile, ScopeEntry } from "@/types/team";
 
@@ -45,9 +46,13 @@ export function TeamWorkspaceTab({ teamId, scopes }: TeamWorkspaceTabProps) {
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [selectedScope, setSelectedScope] = useState<ScopeEntry | null>(null);
+  const [initialized, setInitialized] = useState(false);
+  const spinning = useMinLoading(loading);
 
   const load = useCallback(() => {
-    listFiles(teamId, selectedScope?.channel, selectedScope?.chat_id);
+    listFiles(teamId, selectedScope?.channel, selectedScope?.chat_id).then(() => {
+      setInitialized(true);
+    });
   }, [teamId, listFiles, selectedScope]);
 
   useEffect(() => {
@@ -80,7 +85,7 @@ export function TeamWorkspaceTab({ teamId, scopes }: TeamWorkspaceTabProps) {
     [teamId, files, deleteFile, load],
   );
 
-  if (loading && files.length === 0) {
+  if (!initialized) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
         Loading...
@@ -115,8 +120,8 @@ export function TeamWorkspaceTab({ teamId, scopes }: TeamWorkspaceTabProps) {
             </select>
           )}
         </div>
-        <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+        <Button variant="ghost" size="sm" onClick={load} disabled={spinning}>
+          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${spinning ? "animate-spin" : ""}`} />
           {t("workspace.refresh")}
         </Button>
       </div>

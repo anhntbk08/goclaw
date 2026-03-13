@@ -35,8 +35,7 @@ func NewWorkspaceWriteTool(manager *TeamToolManager, dataDir string) *WorkspaceW
 func (t *WorkspaceWriteTool) Name() string { return "workspace_write" }
 
 func (t *WorkspaceWriteTool) Description() string {
-	return "Write files to the team shared workspace. Files are visible to all team members. " +
-		"Use action=write (default) to write files. Use action=set_template (lead only) to set workspace templates."
+	return "Write files to the team shared workspace (visible to all members). Supports batch write and template management (lead only)."
 }
 
 func (t *WorkspaceWriteTool) Parameters() map[string]any {
@@ -68,7 +67,7 @@ func (t *WorkspaceWriteTool) Parameters() map[string]any {
 			},
 			"scope": map[string]any{
 				"type":        "string",
-				"description": "'channel' (default) or 'team' (requires shared workspace setting)",
+				"description": "'channel' (default, per-user) or 'team' (shared, requires workspace_scope=shared)",
 			},
 			"task_id": map[string]any{
 				"type":        "string",

@@ -27,8 +27,7 @@ func (t *WorkspaceReadTool) Name() string { return "workspace_read" }
 
 func (t *WorkspaceReadTool) Description() string {
 	return "Read and manage files in the team shared workspace. " +
-		"Actions: list (overview), read (file content), delete, pin (lead only), tag (lead only), " +
-		"history (version list), comment (add comment), comments (list comments)."
+		"Actions: list, read (default), delete, pin/tag (lead only), history, comment, comments."
 }
 
 func (t *WorkspaceReadTool) Parameters() map[string]any {
@@ -45,7 +44,7 @@ func (t *WorkspaceReadTool) Parameters() map[string]any {
 			},
 			"scope": map[string]any{
 				"type":        "string",
-				"description": "'channel' (default) or 'team' (requires shared workspace setting)",
+				"description": "'channel' (default, per-user) or 'team' (shared, requires workspace_scope=shared)",
 			},
 			"pinned": map[string]any{
 				"type":        "boolean",
