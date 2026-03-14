@@ -132,7 +132,7 @@ func (t *ExecTool) executeCredentialed(ctx context.Context, cred *store.SecureCL
 
 	// Step 5: Register credential values for output scrubbing
 	for _, v := range envMap {
-		AddDynamicScrubValues(v)
+		AddCredentialScrubValues(v)
 	}
 
 	// Step 6: Determine timeout

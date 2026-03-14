@@ -1,5 +1,7 @@
 package tools
 
+import "sort"
+
 // CLIPreset defines a built-in configuration template for a common CLI tool.
 // Presets eliminate admin research friction by pre-filling env var names,
 // deny patterns, timeout, and usage tips.
@@ -95,5 +97,6 @@ func ListPresetNames() []string {
 	for name := range CLIPresets {
 		names = append(names, name)
 	}
+	sort.Strings(names)
 	return names
 }

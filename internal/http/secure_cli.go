@@ -210,6 +210,18 @@ func (h *SecureCLIHandler) handleUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Allowlist of updatable fields to prevent column injection
+	allowed := map[string]bool{
+		"binary_name": true, "binary_path": true, "description": true,
+		"env": true, "deny_args": true, "deny_verbose": true,
+		"timeout_seconds": true, "tips": true, "agent_id": true, "enabled": true,
+	}
+	for k := range updates {
+		if !allowed[k] {
+			delete(updates, k)
+		}
+	}
+
 	// If env is updated, serialize as JSON string for the store encrypt path
 	if envVal, ok := updates["env"]; ok {
 		if envMap, isMap := envVal.(map[string]any); isMap {
