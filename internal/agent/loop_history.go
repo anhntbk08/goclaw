@@ -604,6 +604,16 @@ func (l *Loop) buildGroupWriterPrompt(ctx context.Context, groupID, senderID str
 			if guildWriters, gErr := l.configPermStore.ListFileWriters(ctx, l.agentUUID, guildWildcard); gErr == nil {
 				writers = append(writers, guildWriters...)
 			}
+			// Deduplicate by UserID (user may have both guild-wide and per-user grants).
+			seen := make(map[string]bool, len(writers))
+			deduped := writers[:0]
+			for _, w := range writers {
+				if !seen[w.UserID] {
+					seen[w.UserID] = true
+					deduped = append(deduped, w)
+				}
+			}
+			writers = deduped
 		}
 	}
 

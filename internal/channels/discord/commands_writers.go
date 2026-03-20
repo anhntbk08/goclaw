@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
@@ -65,7 +66,8 @@ func (c *Channel) tryHandleCommand(m *discordgo.MessageCreate) bool {
 // handleWriterCommand handles !addwriter and !removewriter commands.
 // Target user is identified by @mention or by replying to their message.
 func (c *Channel) handleWriterCommand(m *discordgo.MessageCreate, action string) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	channelID := m.ChannelID
 
 	send := func(text string) {
@@ -180,7 +182,8 @@ func (c *Channel) handleWriterCommand(m *discordgo.MessageCreate, action string)
 
 // handleListWriters handles the !writers command.
 func (c *Channel) handleListWriters(m *discordgo.MessageCreate) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	channelID := m.ChannelID
 
 	send := func(text string) {
