@@ -111,7 +111,7 @@ func (s *PGSessionStore) AddMessage(ctx context.Context, key string, msg provide
 	data.Updated = time.Now()
 }
 
-func (s *PGSessionStore) GetHistory(key string) []providers.Message {
+func (s *PGSessionStore) GetHistory(_ context.Context, key string) []providers.Message {
 	s.mu.RLock()
 	if data, ok := s.cache[key]; ok {
 		msgs := make([]providers.Message, len(data.Messages))
@@ -142,7 +142,7 @@ func (s *PGSessionStore) GetHistory(key string) []providers.Message {
 	return msgs
 }
 
-func (s *PGSessionStore) GetSummary(key string) string {
+func (s *PGSessionStore) GetSummary(_ context.Context, key string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {
@@ -151,7 +151,7 @@ func (s *PGSessionStore) GetSummary(key string) string {
 	return ""
 }
 
-func (s *PGSessionStore) SetSummary(key, summary string) {
+func (s *PGSessionStore) SetSummary(_ context.Context, key, summary string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -160,7 +160,7 @@ func (s *PGSessionStore) SetSummary(key, summary string) {
 	}
 }
 
-func (s *PGSessionStore) GetLabel(key string) string {
+func (s *PGSessionStore) GetLabel(_ context.Context, key string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {
@@ -169,7 +169,7 @@ func (s *PGSessionStore) GetLabel(key string) string {
 	return ""
 }
 
-func (s *PGSessionStore) SetLabel(key, label string) {
+func (s *PGSessionStore) SetLabel(_ context.Context, key, label string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -178,7 +178,7 @@ func (s *PGSessionStore) SetLabel(key, label string) {
 	}
 }
 
-func (s *PGSessionStore) GetSessionMetadata(key string) map[string]string {
+func (s *PGSessionStore) GetSessionMetadata(_ context.Context, key string) map[string]string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok && data.Metadata != nil {
@@ -212,7 +212,7 @@ func (s *PGSessionStore) SetAgentInfo(ctx context.Context, key string, agentUUID
 	}
 }
 
-func (s *PGSessionStore) UpdateMetadata(key, model, provider, channel string) {
+func (s *PGSessionStore) UpdateMetadata(_ context.Context, key, model, provider, channel string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {

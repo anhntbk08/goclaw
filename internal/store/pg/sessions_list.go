@@ -117,7 +117,7 @@ func (s *PGSessionStore) List(ctx context.Context, agentID string) []store.Sessi
 	return result
 }
 
-func (s *PGSessionStore) ListPaged(opts store.SessionListOpts) store.SessionListResult {
+func (s *PGSessionStore) ListPaged(ctx context.Context, opts store.SessionListOpts) store.SessionListResult {
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -129,7 +129,7 @@ func (s *PGSessionStore) ListPaged(opts store.SessionListOpts) store.SessionList
 	// Count total
 	var total int
 	countQ := "SELECT COUNT(*) FROM sessions" + where
-	if err := s.db.QueryRow(countQ, whereArgs...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQ, whereArgs...).Scan(&total); err != nil {
 		return store.SessionListResult{Sessions: []store.SessionInfo{}, Total: 0}
 	}
 
@@ -139,7 +139,7 @@ func (s *PGSessionStore) ListPaged(opts store.SessionListOpts) store.SessionList
 		FROM sessions%s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, nextIdx, nextIdx+1)
 	selectArgs := append(append([]any{}, whereArgs...), limit, offset)
 
-	rows, err := s.db.Query(selectQ, selectArgs...)
+	rows, err := s.db.QueryContext(ctx, selectQ, selectArgs...)
 	if err != nil {
 		return store.SessionListResult{Sessions: []store.SessionInfo{}, Total: total}
 	}
@@ -177,7 +177,7 @@ func (s *PGSessionStore) ListPaged(opts store.SessionListOpts) store.SessionList
 }
 
 // ListPagedRich returns enriched session info for API responses (includes model, tokens, agent name).
-func (s *PGSessionStore) ListPagedRich(opts store.SessionListOpts) store.SessionListRichResult {
+func (s *PGSessionStore) ListPagedRich(ctx context.Context, opts store.SessionListOpts) store.SessionListRichResult {
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -189,7 +189,7 @@ func (s *PGSessionStore) ListPagedRich(opts store.SessionListOpts) store.Session
 	// Count total
 	var total int
 	countQ := "SELECT COUNT(*) FROM sessions s" + where
-	if err := s.db.QueryRow(countQ, whereArgs...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countQ, whereArgs...).Scan(&total); err != nil {
 		return store.SessionListRichResult{Sessions: []store.SessionInfoRich{}, Total: 0}
 	}
 
@@ -208,7 +208,7 @@ func (s *PGSessionStore) ListPagedRich(opts store.SessionListOpts) store.Session
 		%s ORDER BY s.updated_at DESC LIMIT $%d OFFSET $%d`, richCols, where, nextIdx, nextIdx+1)
 	selectArgs := append(append([]any{}, whereArgs...), limit, offset)
 
-	rows, err := s.db.Query(selectQ, selectArgs...)
+	rows, err := s.db.QueryContext(ctx, selectQ, selectArgs...)
 	if err != nil {
 		return store.SessionListRichResult{Sessions: []store.SessionInfoRich{}, Total: total}
 	}
@@ -301,10 +301,10 @@ func (s *PGSessionStore) Save(ctx context.Context, key string) error {
 	return err
 }
 
-func (s *PGSessionStore) LastUsedChannel(agentID string) (string, string) {
+func (s *PGSessionStore) LastUsedChannel(ctx context.Context, agentID string) (string, string) {
 	prefix := "agent:" + agentID + ":%"
 	var sessionKey string
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		`SELECT session_key FROM sessions
 		 WHERE session_key LIKE $1
 		   AND session_key NOT LIKE $2

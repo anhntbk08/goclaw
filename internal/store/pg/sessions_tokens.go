@@ -1,8 +1,11 @@
 package pg
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
-func (s *PGSessionStore) AccumulateTokens(key string, input, output int64) {
+func (s *PGSessionStore) AccumulateTokens(_ context.Context, key string, input, output int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -11,7 +14,7 @@ func (s *PGSessionStore) AccumulateTokens(key string, input, output int64) {
 	}
 }
 
-func (s *PGSessionStore) IncrementCompaction(key string) {
+func (s *PGSessionStore) IncrementCompaction(_ context.Context, key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -19,7 +22,7 @@ func (s *PGSessionStore) IncrementCompaction(key string) {
 	}
 }
 
-func (s *PGSessionStore) GetCompactionCount(key string) int {
+func (s *PGSessionStore) GetCompactionCount(_ context.Context, key string) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {
@@ -28,7 +31,7 @@ func (s *PGSessionStore) GetCompactionCount(key string) int {
 	return 0
 }
 
-func (s *PGSessionStore) GetMemoryFlushCompactionCount(key string) int {
+func (s *PGSessionStore) GetMemoryFlushCompactionCount(_ context.Context, key string) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {
@@ -37,7 +40,7 @@ func (s *PGSessionStore) GetMemoryFlushCompactionCount(key string) int {
 	return -1
 }
 
-func (s *PGSessionStore) SetMemoryFlushDone(key string) {
+func (s *PGSessionStore) SetMemoryFlushDone(_ context.Context, key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -46,7 +49,7 @@ func (s *PGSessionStore) SetMemoryFlushDone(key string) {
 	}
 }
 
-func (s *PGSessionStore) SetSpawnInfo(key, spawnedBy string, depth int) {
+func (s *PGSessionStore) SetSpawnInfo(_ context.Context, key, spawnedBy string, depth int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -55,7 +58,7 @@ func (s *PGSessionStore) SetSpawnInfo(key, spawnedBy string, depth int) {
 	}
 }
 
-func (s *PGSessionStore) SetContextWindow(key string, cw int) {
+func (s *PGSessionStore) SetContextWindow(_ context.Context, key string, cw int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -63,7 +66,7 @@ func (s *PGSessionStore) SetContextWindow(key string, cw int) {
 	}
 }
 
-func (s *PGSessionStore) GetContextWindow(key string) int {
+func (s *PGSessionStore) GetContextWindow(_ context.Context, key string) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {
@@ -72,7 +75,7 @@ func (s *PGSessionStore) GetContextWindow(key string) int {
 	return 0
 }
 
-func (s *PGSessionStore) SetLastPromptTokens(key string, tokens, msgCount int) {
+func (s *PGSessionStore) SetLastPromptTokens(_ context.Context, key string, tokens, msgCount int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -81,7 +84,7 @@ func (s *PGSessionStore) SetLastPromptTokens(key string, tokens, msgCount int) {
 	}
 }
 
-func (s *PGSessionStore) GetLastPromptTokens(key string) (int, int) {
+func (s *PGSessionStore) GetLastPromptTokens(_ context.Context, key string) (int, int) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if data, ok := s.cache[key]; ok {

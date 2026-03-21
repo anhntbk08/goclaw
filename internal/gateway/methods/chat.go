@@ -222,7 +222,7 @@ func (m *ChatMethods) handleSend(ctx context.Context, client *gateway.Client, re
 		}
 
 		// Auto-generate conversation title on first message (label empty = never titled).
-		if label := m.sessions.GetLabel(sessionKey); label == "" {
+		if label := m.sessions.GetLabel(ctx, sessionKey); label == "" {
 			agentProvider := loop.Provider()
 			agentModel := loop.Model()
 			userMsg := params.Message
@@ -231,7 +231,7 @@ func (m *ChatMethods) handleSend(ctx context.Context, client *gateway.Client, re
 				if title == "" {
 					return
 				}
-				m.sessions.SetLabel(sessionKey, title)
+				m.sessions.SetLabel(context.Background(), sessionKey, title)
 				if err := m.sessions.Save(context.Background(), sessionKey); err != nil {
 					slog.Warn("failed to save session title", "sessionKey", sessionKey, "error", err)
 					return
@@ -277,7 +277,7 @@ func (m *ChatMethods) handleHistory(ctx context.Context, client *gateway.Client,
 		sessionKey = sessions.BuildWSSessionKey(params.AgentID, uuid.NewString())
 	}
 
-	history := m.sessions.GetHistory(sessionKey)
+	history := m.sessions.GetHistory(ctx, sessionKey)
 
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"messages": history,

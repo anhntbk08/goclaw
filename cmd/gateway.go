@@ -778,10 +778,11 @@ func runGateway() {
 	// Uses calibrated token estimation (actual prompt tokens from last LLM call)
 	// and the agent's real context window (cached on session by the Loop).
 	sched.SetTokenEstimateFunc(func(sessionKey string) (int, int) {
-		history := pgStores.Sessions.GetHistory(sessionKey)
-		lastPT, lastMC := pgStores.Sessions.GetLastPromptTokens(sessionKey)
+		bctx := context.Background()
+		history := pgStores.Sessions.GetHistory(bctx, sessionKey)
+		lastPT, lastMC := pgStores.Sessions.GetLastPromptTokens(bctx, sessionKey)
 		tokens := agent.EstimateTokensWithCalibration(history, lastPT, lastMC)
-		cw := pgStores.Sessions.GetContextWindow(sessionKey)
+		cw := pgStores.Sessions.GetContextWindow(bctx, sessionKey)
 		if cw <= 0 {
 			cw = config.DefaultContextWindow
 		}

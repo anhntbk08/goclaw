@@ -1,12 +1,13 @@
 package pg
 
 import (
+	"context"
 	"time"
 
 	"github.com/nextlevelbuilder/goclaw/internal/providers"
 )
 
-func (s *PGSessionStore) TruncateHistory(key string, keepLast int) {
+func (s *PGSessionStore) TruncateHistory(_ context.Context, key string, keepLast int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -19,7 +20,7 @@ func (s *PGSessionStore) TruncateHistory(key string, keepLast int) {
 	}
 }
 
-func (s *PGSessionStore) SetHistory(key string, msgs []providers.Message) {
+func (s *PGSessionStore) SetHistory(_ context.Context, key string, msgs []providers.Message) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -28,7 +29,7 @@ func (s *PGSessionStore) SetHistory(key string, msgs []providers.Message) {
 	}
 }
 
-func (s *PGSessionStore) Reset(key string) {
+func (s *PGSessionStore) Reset(_ context.Context, key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if data, ok := s.cache[key]; ok {
@@ -38,7 +39,7 @@ func (s *PGSessionStore) Reset(key string) {
 	}
 }
 
-func (s *PGSessionStore) Delete(key string) error {
+func (s *PGSessionStore) Delete(_ context.Context, key string) error {
 	s.mu.Lock()
 	delete(s.cache, key)
 	s.mu.Unlock()

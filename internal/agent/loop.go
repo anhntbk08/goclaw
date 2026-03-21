@@ -247,19 +247,19 @@ func (l *Loop) runLoop(ctx context.Context, req RunRequest) (*RunResult, error) 
 
 	// 0. Cache agent's context window on the session (first run only).
 	// Enables scheduler's adaptive throttle to use the real value instead of hardcoded 200K.
-	if l.sessions.GetContextWindow(req.SessionKey) <= 0 {
-		l.sessions.SetContextWindow(req.SessionKey, l.contextWindow)
+	if l.sessions.GetContextWindow(ctx, req.SessionKey) <= 0 {
+		l.sessions.SetContextWindow(ctx, req.SessionKey, l.contextWindow)
 	}
 
 	// 0b. Load adaptive tool timing from session metadata.
-	toolTiming := ParseToolTiming(l.sessions.GetSessionMetadata(req.SessionKey))
+	toolTiming := ParseToolTiming(l.sessions.GetSessionMetadata(ctx, req.SessionKey))
 
 	// Resolve slow_tool notification config from already-loaded team settings (no extra DB query).
 	slowToolEnabled := tools.ParseTeamNotifyConfig(resolvedTeamSettings).SlowTool
 
 	// 1. Build messages from session history
-	history := l.sessions.GetHistory(req.SessionKey)
-	summary := l.sessions.GetSummary(req.SessionKey)
+	history := l.sessions.GetHistory(ctx, req.SessionKey)
+	summary := l.sessions.GetSummary(ctx, req.SessionKey)
 
 	// buildMessages resolves context files once and also detects BOOTSTRAP.md presence
 	// (hadBootstrap) — no extra DB roundtrip needed for bootstrap detection.
@@ -1409,15 +1409,15 @@ func (l *Loop) runLoop(ctx context.Context, req RunRequest) (*RunResult, error) 
 	}
 
 	// Write session metadata (matching TS session entry updates)
-	l.sessions.UpdateMetadata(req.SessionKey, l.model, l.provider.Name(), req.Channel)
-	l.sessions.AccumulateTokens(req.SessionKey, int64(totalUsage.PromptTokens), int64(totalUsage.CompletionTokens))
+	l.sessions.UpdateMetadata(ctx, req.SessionKey, l.model, l.provider.Name(), req.Channel)
+	l.sessions.AccumulateTokens(ctx, req.SessionKey, int64(totalUsage.PromptTokens), int64(totalUsage.CompletionTokens))
 
 	// Calibrate token estimation: store actual prompt tokens + message count.
 	// Next time EstimateTokensWithCalibration() is called, it uses this as a base
 	// instead of the chars/3 heuristic (more accurate for multilingual content).
 	if totalUsage.PromptTokens > 0 {
 		msgCount := len(history) + len(pendingMsgs)
-		l.sessions.SetLastPromptTokens(req.SessionKey, totalUsage.PromptTokens, msgCount)
+		l.sessions.SetLastPromptTokens(ctx, req.SessionKey, totalUsage.PromptTokens, msgCount)
 	}
 
 	l.sessions.Save(ctx, req.SessionKey)

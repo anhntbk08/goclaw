@@ -38,7 +38,7 @@ type sessionsListParams struct {
 	Offset  int    `json:"offset"`
 }
 
-func (m *SessionsMethods) handleList(_ context.Context, client *gateway.Client, req *protocol.RequestFrame) {
+func (m *SessionsMethods) handleList(ctx context.Context, client *gateway.Client, req *protocol.RequestFrame) {
 	var params sessionsListParams
 	if req.Params != nil {
 		json.Unmarshal(req.Params, &params)
@@ -61,7 +61,7 @@ func (m *SessionsMethods) handleList(_ context.Context, client *gateway.Client, 
 		opts.UserID = client.UserID()
 	}
 
-	result := m.sessions.ListPagedRich(opts)
+	result := m.sessions.ListPagedRich(ctx, opts)
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"sessions": result.Sessions,
 		"total":    result.Total,
@@ -90,8 +90,8 @@ func (m *SessionsMethods) handlePreview(ctx context.Context, client *gateway.Cli
 		}
 	}
 
-	history := m.sessions.GetHistory(params.Key)
-	summary := m.sessions.GetSummary(params.Key)
+	history := m.sessions.GetHistory(ctx, params.Key)
+	summary := m.sessions.GetSummary(ctx, params.Key)
 
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"key":      params.Key,
@@ -130,12 +130,12 @@ func (m *SessionsMethods) handlePatch(ctx context.Context, client *gateway.Clien
 
 	// Apply label patch
 	if params.Label != nil {
-		m.sessions.SetLabel(params.Key, *params.Label)
+		m.sessions.SetLabel(ctx, params.Key, *params.Label)
 	}
 
 	// Apply model patch
 	if params.Model != nil {
-		m.sessions.UpdateMetadata(params.Key, *params.Model, "", "")
+		m.sessions.UpdateMetadata(ctx, params.Key, *params.Model, "", "")
 	}
 
 	// Apply metadata patch
@@ -169,7 +169,7 @@ func (m *SessionsMethods) handleDelete(ctx context.Context, client *gateway.Clie
 		}
 	}
 
-	if err := m.sessions.Delete(params.Key); err != nil {
+	if err := m.sessions.Delete(ctx, params.Key); err != nil {
 		client.SendResponse(protocol.NewErrorResponse(req.ID, protocol.ErrInternal, err.Error()))
 		return
 	}
@@ -196,7 +196,7 @@ func (m *SessionsMethods) handleReset(ctx context.Context, client *gateway.Clien
 		}
 	}
 
-	m.sessions.Reset(params.Key)
+	m.sessions.Reset(ctx, params.Key)
 
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"ok": true,

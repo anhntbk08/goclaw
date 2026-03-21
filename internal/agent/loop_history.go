@@ -231,7 +231,7 @@ func (l *Loop) buildMessages(ctx context.Context, history []providers.Message, s
 		slog.Info("sanitizeHistory: cleaned session history",
 			"session", sessionKey, "dropped", droppedCount)
 		cleanedHistory, _ := sanitizeHistory(history)
-		l.sessions.SetHistory(sessionKey, cleanedHistory)
+		l.sessions.SetHistory(ctx, sessionKey, cleanedHistory)
 		l.sessions.Save(ctx, sessionKey)
 	}
 
@@ -471,10 +471,10 @@ func sanitizeHistory(msgs []providers.Message) ([]providers.Message, int) {
 }
 
 func (l *Loop) maybeSummarize(ctx context.Context, sessionKey string) {
-	history := l.sessions.GetHistory(sessionKey)
+	history := l.sessions.GetHistory(ctx, sessionKey)
 
 	// Use calibrated token estimation when available.
-	lastPT, lastMC := l.sessions.GetLastPromptTokens(sessionKey)
+	lastPT, lastMC := l.sessions.GetLastPromptTokens(ctx, sessionKey)
 	tokenEstimate := EstimateTokensWithCalibration(history, lastPT, lastMC)
 
 	// Resolve compaction thresholds from config with sensible defaults.
@@ -505,7 +505,7 @@ func (l *Loop) maybeSummarize(ctx context.Context, sessionKey string) {
 	// Memory flush runs synchronously INSIDE the guard
 	// (so concurrent runs don't both trigger flush for the same compaction cycle).
 	flushSettings := ResolveMemoryFlushSettings(l.compactionCfg)
-	if l.shouldRunMemoryFlush(sessionKey, tokenEstimate, flushSettings) {
+	if l.shouldRunMemoryFlush(ctx, sessionKey, tokenEstimate, flushSettings) {
 		l.runMemoryFlush(ctx, sessionKey, flushSettings)
 	}
 
@@ -521,15 +521,15 @@ func (l *Loop) maybeSummarize(ctx context.Context, sessionKey string) {
 
 		// Re-check: history may have been truncated by a concurrent summarize
 		// that finished between our threshold check and acquiring the lock.
-		history := l.sessions.GetHistory(sessionKey)
+		sctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+
+		history := l.sessions.GetHistory(sctx, sessionKey)
 		if len(history) <= keepLast {
 			return
 		}
 
-		sctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-		defer cancel()
-
-		summary := l.sessions.GetSummary(sessionKey)
+		summary := l.sessions.GetSummary(sctx, sessionKey)
 		toSummarize := history[:len(history)-keepLast]
 
 		var sb strings.Builder
@@ -579,9 +579,9 @@ func (l *Loop) maybeSummarize(ctx context.Context, sessionKey string) {
 			return
 		}
 
-		l.sessions.SetSummary(sessionKey, SanitizeAssistantContent(resp.Content))
-		l.sessions.TruncateHistory(sessionKey, keepLast)
-		l.sessions.IncrementCompaction(sessionKey)
+		l.sessions.SetSummary(sctx, sessionKey, SanitizeAssistantContent(resp.Content))
+		l.sessions.TruncateHistory(sctx, sessionKey, keepLast)
+		l.sessions.IncrementCompaction(sctx, sessionKey)
 		l.sessions.Save(sctx, sessionKey)
 	}()
 }
