@@ -98,7 +98,8 @@ type ResolverDeps struct {
 // Agents are defined in Postgres, not config.json.
 func NewManagedResolver(deps ResolverDeps) ResolverFunc {
 	return func(agentKey string) (Agent, error) {
-		ctx := context.Background()
+		// Resolver is a system-level operation that must see all agents regardless of tenant.
+		ctx := store.WithCrossTenant(context.Background())
 
 		// Support lookup by UUID (e.g. from cron jobs that store agent_id as UUID)
 		var ag *store.AgentData
