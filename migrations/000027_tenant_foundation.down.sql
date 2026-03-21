@@ -16,6 +16,14 @@ ALTER TABLE mcp_servers ADD CONSTRAINT mcp_servers_name_key UNIQUE (name);
 DROP INDEX IF EXISTS idx_channel_contacts_tenant_type_sender;
 ALTER TABLE channel_contacts ADD CONSTRAINT channel_contacts_channel_type_sender_id_key UNIQUE (channel_type, sender_id);
 
+-- Restore original usage_snapshots unique index (without tenant_id)
+DROP INDEX IF EXISTS idx_usage_snapshots_unique;
+CREATE UNIQUE INDEX idx_usage_snapshots_unique ON usage_snapshots (
+    bucket_hour,
+    COALESCE(agent_id, '00000000-0000-0000-0000-000000000000'),
+    provider, model, channel
+);
+
 -- Drop new tables
 DROP TABLE IF EXISTS skill_tenant_configs;
 DROP TABLE IF EXISTS builtin_tool_tenant_configs;

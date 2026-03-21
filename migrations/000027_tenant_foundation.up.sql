@@ -242,3 +242,12 @@ CREATE UNIQUE INDEX idx_mcp_servers_tenant_name ON mcp_servers(tenant_id, name);
 ALTER TABLE channel_contacts DROP CONSTRAINT IF EXISTS channel_contacts_channel_type_sender_id_key;
 DROP INDEX IF EXISTS channel_contacts_channel_type_sender_id_key;
 CREATE UNIQUE INDEX idx_channel_contacts_tenant_type_sender ON channel_contacts(tenant_id, channel_type, sender_id);
+
+-- usage_snapshots: add tenant_id to unique conflict index for per-tenant aggregation
+DROP INDEX IF EXISTS idx_usage_snapshots_unique;
+CREATE UNIQUE INDEX idx_usage_snapshots_unique ON usage_snapshots (
+    bucket_hour,
+    COALESCE(agent_id, '00000000-0000-0000-0000-000000000000'),
+    provider, model, channel,
+    tenant_id
+);

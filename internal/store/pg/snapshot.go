@@ -72,7 +72,7 @@ func (s *PGSnapshotStore) upsertBatch(ctx context.Context, snapshots []store.Usa
 		memory_docs, memory_chunks, kg_entities, kg_relations,
 		tenant_id
 	) VALUES ` + strings.Join(vals, ", ") + `
-	ON CONFLICT (bucket_hour, COALESCE(agent_id, '00000000-0000-0000-0000-000000000000'), provider, model, channel)
+	ON CONFLICT (bucket_hour, COALESCE(agent_id, '00000000-0000-0000-0000-000000000000'), provider, model, channel, tenant_id)
 	DO UPDATE SET
 		input_tokens = EXCLUDED.input_tokens,
 		output_tokens = EXCLUDED.output_tokens,
