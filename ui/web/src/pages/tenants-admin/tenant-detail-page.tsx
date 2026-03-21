@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -146,7 +148,7 @@ export function TenantDetailPage() {
           <EmptyState icon={Users} title={t("noUsers")} description="" />
         ) : (
           <div className="rounded-md border overflow-x-auto">
-            <table className="w-full min-w-[500px] text-base md:text-sm">
+            <table className="w-full min-w-[600px] text-base md:text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-2 text-left font-medium">{t("userId")}</th>
@@ -188,6 +190,7 @@ export function TenantDetailPage() {
         <DialogContent className="max-sm:inset-0 max-sm:translate-x-0 max-sm:translate-y-0 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("addUserTitle")}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -227,23 +230,16 @@ export function TenantDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirm Remove Dialog */}
-      <Dialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
-        <DialogContent className="max-sm:inset-0 max-sm:translate-x-0 max-sm:translate-y-0 sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("removeUser")}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">{t("confirmRemoveUser")}</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRemoveTarget(null)} disabled={removing}>
-              {tc("cancel")}
-            </Button>
-            <Button variant="destructive" onClick={handleRemove} disabled={removing}>
-              {t("removeUser")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}
+        title={t("removeUser")}
+        description={t("confirmRemoveUser")}
+        confirmLabel={t("removeUser")}
+        variant="destructive"
+        onConfirm={handleRemove}
+        loading={removing}
+      />
     </div>
   );
 }

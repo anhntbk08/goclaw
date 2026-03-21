@@ -251,11 +251,12 @@ func (s *PGPendingMessageStore) ResolveGroupTitles(ctx context.Context, groups [
 	tenantFilter := ""
 	if !store.IsCrossTenant(ctx) {
 		tid := store.TenantIDFromContext(ctx)
-		if tid != uuid.Nil {
-			argIdx := len(args) + 1
-			tenantFilter = fmt.Sprintf(" AND tenant_id = $%d", argIdx)
-			args = append(args, tid)
+		if tid == uuid.Nil {
+			tid = store.MasterTenantID
 		}
+		argIdx := len(args) + 1
+		tenantFilter = fmt.Sprintf(" AND tenant_id = $%d", argIdx)
+		args = append(args, tid)
 	}
 
 	rows, err := s.db.QueryContext(ctx,

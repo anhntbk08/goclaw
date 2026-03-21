@@ -560,8 +560,9 @@ func handleResetCommand(
 			sessionKey = sessions.BuildGroupTopicSessionKey(agentID, msg.Channel, msg.ChatID, topicID)
 		}
 	}
-	sessStore.Reset(context.Background(), sessionKey)
-	sessStore.Save(context.Background(), sessionKey)
+	ctx := store.WithTenantID(context.Background(), msg.TenantID)
+	sessStore.Reset(ctx, sessionKey)
+	sessStore.Save(ctx, sessionKey)
 	providers.ResetCLISession("", sessionKey)
 	slog.Info("inbound: /reset command", "session", sessionKey)
 

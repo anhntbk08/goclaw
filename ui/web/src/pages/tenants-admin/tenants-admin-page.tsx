@@ -91,7 +91,7 @@ export function TenantsAdminPage() {
                   <th className="px-4 py-2 text-left font-medium">{t("name")}</th>
                   <th className="px-4 py-2 text-left font-medium">{t("slug")}</th>
                   <th className="px-4 py-2 text-left font-medium">{t("status")}</th>
-                  <th className="px-4 py-2 text-left font-medium">{t("role")}</th>
+                  <th className="px-4 py-2 text-left font-medium">{t("created")}</th>
                 </tr>
               </thead>
               <tbody>

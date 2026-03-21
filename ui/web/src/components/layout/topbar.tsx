@@ -112,13 +112,14 @@ function UserMenu() {
   const { t: tt } = useTranslation("tenants");
   const logout = useAuthStore((s) => s.logout);
   const userId = useAuthStore((s) => s.userId);
-  const { currentTenant, tenants, isCrossTenant, isMultiTenant, currentTenantId } = useTenants();
+  const { currentTenant, currentTenantName, tenants, isCrossTenant, isMultiTenant, currentTenantId } = useTenants();
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const tenantLabel = isCrossTenant
+  const isNilTenant = !currentTenantId || currentTenantId === "00000000-0000-0000-0000-000000000000";
+  const tenantLabel = isCrossTenant && isNilTenant
     ? tt("allTenants")
-    : currentTenant?.name || "";
+    : currentTenant?.name || currentTenantName || "";
 
   const handleSwitchTenant = (_tenantId: string, slug: string) => {
     // Cross-tenant admin: narrow scope to specific tenant
@@ -176,7 +177,7 @@ function UserMenu() {
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                   <span className="flex-1 truncate text-left font-medium">{tt("allTenants")}</span>
-                  {!currentTenantId && (
+                  {(!currentTenantId || currentTenantId === "00000000-0000-0000-0000-000000000000") && (
                     <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                   )}
                 </button>

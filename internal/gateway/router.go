@@ -74,7 +74,10 @@ func (r *MethodRouter) Handle(ctx context.Context, client *Client, req *protocol
 
 	// Inject locale + tenant into context
 	ctx = store.WithLocale(ctx, i18n.Normalize(client.locale))
-	if client.IsCrossTenant() {
+	if client.IsCrossTenant() && client.TenantID() != uuid.Nil {
+		// Cross-tenant admin with tenant_scope: filter data by chosen tenant
+		ctx = store.WithTenantID(ctx, client.TenantID())
+	} else if client.IsCrossTenant() {
 		ctx = store.WithCrossTenant(ctx)
 	} else if client.TenantID() != uuid.Nil {
 		ctx = store.WithTenantID(ctx, client.TenantID())
@@ -280,20 +283,20 @@ func (r *MethodRouter) resolveTenantHint(ctx context.Context, hint string) uuid.
 	return t.ID
 }
 
-// applyTenantScope narrows a cross-tenant client to a specific tenant.
-// Only applies when client is cross-tenant and scope slug is non-empty + valid.
-// After applying, client.crossTenant becomes false and client.tenantID is set.
+// applyTenantScope narrows a cross-tenant client's data scope to a specific tenant.
+// Client stays crossTenant=true (retains admin privileges) but tenantID is set
+// so the router injects WithTenantID instead of WithCrossTenant for data filtering.
 func (r *MethodRouter) applyTenantScope(ctx context.Context, client *Client, scopeSlug string) {
 	if scopeSlug == "" || r.tenantStore == nil {
 		return
 	}
 	t, err := r.tenantStore.GetTenantBySlug(ctx, scopeSlug)
 	if err != nil || t == nil {
-		slog.Debug("tenant_scope not resolved, keeping cross-tenant", "scope", scopeSlug)
+		slog.Debug("tenant_scope not resolved, keeping unscoped", "scope", scopeSlug)
 		return
 	}
 	client.tenantID = t.ID
-	client.crossTenant = false
+	// Keep crossTenant=true so client retains admin role + tenant admin access
 	slog.Info("tenant_scope applied", "client", client.id, "tenant", t.Slug, "tenant_id", t.ID)
 }
 
