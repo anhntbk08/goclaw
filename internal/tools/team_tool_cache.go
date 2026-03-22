@@ -171,8 +171,9 @@ func (m *TeamToolManager) cachedListMembers(ctx context.Context, teamID uuid.UUI
 }
 
 // resolveAgentByKey looks up an agent by key and returns its UUID.
-func (m *TeamToolManager) resolveAgentByKey(key string) (uuid.UUID, error) {
-	ag, err := m.cachedGetAgentByKey(store.WithCrossTenant(context.Background()), key)
+// Uses the caller's tenant-scoped context for isolation.
+func (m *TeamToolManager) resolveAgentByKey(ctx context.Context, key string) (uuid.UUID, error) {
+	ag, err := m.cachedGetAgentByKey(ctx, key)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("agent %q not found: %w", key, err)
 	}

@@ -181,9 +181,8 @@ func (h *PendingMessagesHandler) resolveProviderAndModel(ctx context.Context) (p
 	}
 
 	// Fallback: default agent's provider+model.
-	// Use agent's own TenantID for provider lookup since GetDefault uses cross-tenant.
 	if h.agentStore != nil {
-		if ag, err := h.agentStore.GetDefault(store.WithCrossTenant(context.Background())); err == nil && ag.Provider != "" {
+		if ag, err := h.agentStore.GetDefault(ctx); err == nil && ag.Provider != "" {
 			if p, err := h.providerReg.GetForTenant(ag.TenantID, ag.Provider); err == nil {
 				model := ag.Model
 				if model == "" {

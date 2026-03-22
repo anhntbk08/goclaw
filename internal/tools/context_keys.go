@@ -391,11 +391,14 @@ func PendingTeamDispatchFromCtx(ctx context.Context) *PendingTeamDispatch {
 func InjectTeamDispatch(ctx context.Context, postTurn PostTurnProcessor) (context.Context, func()) {
 	ptd := NewPendingTeamDispatch()
 	ctx = WithPendingTeamDispatch(ctx, ptd)
+	// Detach from caller's cancel/deadline but keep values (tenant_id, user_id, etc.)
+	// so post-turn dispatch isn't aborted when the HTTP request or WS handler returns.
+	detached := context.WithoutCancel(ctx)
 	drain := func() {
 		ptd.ReleaseTeamLock()
 		if postTurn != nil {
 			for teamID, taskIDs := range ptd.Drain() {
-				if err := postTurn.ProcessPendingTasks(context.Background(), teamID, taskIDs); err != nil {
+				if err := postTurn.ProcessPendingTasks(detached, teamID, taskIDs); err != nil {
 					slog.Warn("post_turn: dispatch failed", "team_id", teamID, "error", err)
 				}
 			}

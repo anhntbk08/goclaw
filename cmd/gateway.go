@@ -161,12 +161,9 @@ func runGateway() {
 				}
 				// Notify clients that leader is processing team results
 				// (bridges UI gap between last task.completed and announce run.started).
-				msgBus.Broadcast(bus.Event{
-					Name: protocol.EventTeamLeaderProcessing,
-					Payload: map[string]any{
-						"agentId": meta.ParentAgent,
-						"tasks":   len(items),
-					},
+				bus.BroadcastForTenant(msgBus, protocol.EventTeamLeaderProcessing, meta.OriginTenantID, map[string]any{
+					"agentId": meta.ParentAgent,
+					"tasks":   len(items),
 				})
 
 				msgBus.PublishInbound(bus.InboundMessage{
