@@ -72,7 +72,7 @@ export function BuiltinToolsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6 pb-10">
       <PageHeader
         title={t("builtin.title")}
         description={t("builtin.description")}

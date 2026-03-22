@@ -452,7 +452,9 @@ func setupSkillsSystem(
 	toolsReg *tools.Registry,
 	providerRegistry *providers.Registry,
 	msgBus *bus.MessageBus,
-) (*skills.Loader, *tools.SkillSearchTool, string) {
+) (*skills.Loader, *tools.SkillSearchTool, string, string) {
+	var bundledSkillsDir string // resolved later; returned for HTTP handler fallback
+
 	// Skills loader + search tool
 	// Global skills live under ~/.goclaw/skills/ (user-managed), not data/skills/.
 	globalSkillsDir := os.Getenv("GOCLAW_SKILLS_DIR")
@@ -480,7 +482,7 @@ func setupSkillsSystem(
 			slog.Info("skills-store directory wired into loader", "dir", storeDirs[0])
 
 			// Seed system/bundled skills into DB
-			bundledSkillsDir := os.Getenv("GOCLAW_BUNDLED_SKILLS_DIR")
+			bundledSkillsDir = os.Getenv("GOCLAW_BUNDLED_SKILLS_DIR")
 			if bundledSkillsDir == "" {
 				// Check common locations: Docker default, then local dev
 				for _, candidate := range []string{"bundled-skills", "/app/bundled-skills", "skills"} {
@@ -549,6 +551,6 @@ func setupSkillsSystem(
 		}
 	}
 
-	return skillsLoader, skillSearchTool, globalSkillsDir
+	return skillsLoader, skillSearchTool, globalSkillsDir, bundledSkillsDir
 }
 

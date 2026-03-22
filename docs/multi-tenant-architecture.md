@@ -1,56 +1,185 @@
-# Multi-Tenant Solution Architecture
+# Multi-Tenant Integration Guide
 
-GoClaw is a multi-tenant AI agent gateway. This document describes the isolation architecture, authentication model, and data flow for integrators building on top of GoClaw.
+GoClaw is a **pure AI backend** — it handles agents, chat, sessions, tools, MCP servers, and memory. It does **not** handle user authentication, billing, or onboarding. Your application owns those concerns. API keys bridge the two systems.
+
+This guide explains how to integrate GoClaw as a multi-tenant AI backend for your SaaS application.
 
 ---
 
-## System Overview
+## How It Works
 
 ```mermaid
-graph TB
-    subgraph Clients
-        FE1[Custom Frontend A]
-        FE2[Custom Frontend B]
-        BOT[Chat Channels<br/>Telegram / Discord / Slack]
-        CLI[CLI / API Consumer]
+graph LR
+    subgraph "Your Application"
+        FE[Your Frontend]
+        BE[Your Backend<br/>Auth + Billing + Business Logic]
     end
 
-    subgraph GoClaw Gateway
-        WS[WebSocket Server<br/>Protocol v3]
-        HTTP[HTTP REST API]
-        AUTH[Auth Resolver]
-        ROUTER[Method Router<br/>+ Tenant Context]
+    subgraph "GoClaw"
+        GW[Gateway<br/>WS + HTTP API]
+        AG[Agents / Chat / Tools]
+        DB[(PostgreSQL<br/>tenant-isolated)]
     end
 
-    subgraph Core
-        AGENT[Agent Loop<br/>think → act → observe]
-        SCHED[Scheduler<br/>Lane-based concurrency]
-        EVENTS[Event Bus<br/>+ Tenant Filter]
-    end
+    FE -->|authenticated request| BE
+    BE -->|API key + user_id| GW
+    GW -->|tenant-scoped| AG
+    AG --> DB
+```
 
-    subgraph Data Layer
-        PG[(PostgreSQL<br/>tenant_id on all tables)]
-        CACHE[Session Cache<br/>tenant-prefixed keys]
-        POOL[MCP Pool<br/>tenant-scoped connections]
-    end
+Your **frontend never talks to GoClaw directly**. All requests go through **your backend**, which authenticates the user, then calls GoClaw using a **tenant-bound API key**. The API key stays server-side — never exposed to the browser.
 
-    FE1 & FE2 & CLI -->|API Key| WS & HTTP
-    BOT -->|Channel Instance| AGENT
-    WS & HTTP --> AUTH
-    AUTH -->|tenant_id + role| ROUTER
-    ROUTER --> AGENT & SCHED
-    AGENT --> PG & CACHE & POOL
-    EVENTS -->|filtered by tenant| WS
+GoClaw automatically scopes all data — agents, sessions, memory, teams — to the tenant bound to that API key.
+
+**Single-tenant mode** works unchanged. All data lives under a default "master" tenant. Multi-tenant features activate only when you create additional tenants.
+
+---
+
+## Tenant Setup
+
+```mermaid
+sequenceDiagram
+    participant Admin as System Admin
+    participant GC as GoClaw API
+
+    Admin->>GC: tenants.create {name: "Acme Corp", slug: "acme"}
+    GC-->>Admin: {id: "tenant-uuid", slug: "acme"}
+
+    Admin->>GC: tenants.users.add {tenant_id, user_id: "user-123", role: "admin"}
+
+    Admin->>GC: api_keys.create {tenant_id, scopes: ["operator.read", "operator.write"]}
+    GC-->>Admin: {key: "goclaw_sk_abc123..."}
+
+    Note over Admin: Store API key in your backend's config/secrets
+```
+
+Each tenant gets isolated: **agents, sessions, teams, memory, LLM providers, MCP servers, skills**. A tenant-bound API key automatically scopes every request — no extra headers needed.
+
+---
+
+## Tenant Resolution
+
+GoClaw determines the tenant from the credentials used to connect:
+
+| Credential | Tenant Resolution | Use Case |
+|------------|-------------------|----------|
+| **API key** (tenant-bound) | Auto from key's `tenant_id` | Normal SaaS integration |
+| **API key** (system-level) + `X-GoClaw-Tenant-Id` header | Header value (UUID or slug) | Cross-tenant admin tools |
+| **Gateway token** + `X-GoClaw-Tenant-Id` header | Header value (UUID or slug) | System owner scoping |
+| **Gateway token** (no header) | All tenants (cross-tenant) | System administration |
+| **No credentials** | Master tenant | Dev/single-user mode |
+
+**Recommended**: Use **tenant-bound API keys** for integration. The tenant is resolved automatically from the key — your backend doesn't need to send any tenant header.
+
+---
+
+## HTTP API
+
+All HTTP endpoints accept standard headers:
+
+| Header | Required | Description |
+|--------|:---:|-------------|
+| `Authorization` | Yes | `Bearer <api-key-or-gateway-token>` |
+| `X-GoClaw-User-Id` | Yes | Your app's user ID (max 255 chars). Scopes sessions and per-user data |
+| `X-GoClaw-Tenant-Id` | No | Tenant UUID or slug. Only needed for system-level keys |
+| `X-GoClaw-Agent-Id` | No | Target agent ID (alternative to `model` field) |
+| `Accept-Language` | No | Locale for error messages: `en`, `vi`, `zh` |
+
+**Example** — Your backend sends a chat request on behalf of a user:
+
+```bash
+# Called from YOUR backend, not from the browser
+curl -X POST https://goclaw.example.com/v1/chat/completions \
+  -H "Authorization: Bearer goclaw_sk_abc123..." \
+  -H "X-GoClaw-User-Id: user-456" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "agent:my-agent", "messages": [{"role": "user", "content": "Hello"}]}'
+```
+
+The API key is bound to tenant "Acme Corp" — the response only includes data from that tenant. No `X-GoClaw-Tenant-Id` header needed.
+
+**Example** — System admin listing agents for a specific tenant:
+
+```bash
+curl https://goclaw.example.com/v1/agents \
+  -H "Authorization: Bearer $GATEWAY_TOKEN" \
+  -H "X-GoClaw-Tenant-Id: acme" \
+  -H "X-GoClaw-User-Id: admin-user"
 ```
 
 ---
 
-## Tenant Model
+## WebSocket Integration
+
+For real-time features (streaming chat, live events), your backend connects to GoClaw via WebSocket:
+
+```mermaid
+sequenceDiagram
+    participant FE as Your Frontend
+    participant BE as Your Backend
+    participant GC as GoClaw Gateway
+
+    FE->>BE: User sends message (authenticated)
+    BE->>GC: WS connect {token: "goclaw_sk_abc...", user_id: "user-456"}
+    GC-->>BE: {role: "operator", tenant_id, tenant_name, tenant_slug}
+
+    BE->>GC: chat.send {agent_key: "my-agent", message: "Hello"}
+    GC-->>BE: event: agent {type: "chunk", content: "Hi..."}
+    BE-->>FE: Stream response to user
+    GC-->>BE: event: agent {type: "run.completed"}
+```
+
+After `connect`, **all methods are auto-scoped** to the API key's tenant. Events are server-side filtered — your backend only receives events belonging to its tenant.
+
+**Protocol**: Frame types `req` (client→server), `res` (server→client), `event` (async push). Protocol version 3.
+
+---
+
+## Chat Channels
+
+Chat channels (Telegram, Discord, Zalo, Slack, WhatsApp, Feishu) connect to GoClaw as **channel instances**. Each instance is configured with a `tenant_id` — messages from that channel are automatically resolved to the correct tenant.
+
+No API key or header is needed for channel-based interactions. The tenant is determined by the channel instance configuration at setup time.
+
+---
+
+## API Key Scopes
+
+API keys use scopes to control access level:
+
+| Scope | Role | Permissions |
+|-------|------|-------------|
+| `operator.admin` | admin | Full access — agents, config, API keys, tenants |
+| `operator.read` | viewer | Read-only — list agents, sessions, configs |
+| `operator.write` | operator | Read + write — chat, create sessions, manage agents |
+| `operator.approvals` | operator | Approve/reject execution requests |
+| `operator.provision` | operator | Create tenants + manage tenant users |
+| `operator.pairing` | operator | Manage device pairing |
+
+A key with `["operator.read", "operator.write"]` gets `operator` role. A key with `["operator.admin"]` gets `admin` role.
+
+---
+
+## Security
+
+| Concern | How GoClaw Handles It |
+|---------|-----------------------|
+| API key exposure | Keys stay in your backend — never sent to browser |
+| Cross-tenant data access | All SQL queries include `WHERE tenant_id = $N` |
+| Event leakage | Server-side filtering — events only reach matching tenant |
+| Missing tenant context | Fail-closed: returns error, never unfiltered data |
+| API key storage | Keys hashed with SHA-256 at rest; only prefix shown in UI |
+| Tenant impersonation | Tenant resolved from API key binding, not client headers |
+| Privilege escalation | Role derived from key scopes, not client claims |
+
+---
+
+## Tenant Data Model
 
 ```mermaid
 erDiagram
-    TENANTS ||--o{ TENANT_USERS : "has members"
-    TENANTS ||--o{ API_KEYS : "scopes keys"
+    TENANTS ||--o{ TENANT_USERS : "members"
+    TENANTS ||--o{ API_KEYS : "keys"
     TENANTS ||--o{ AGENTS : "owns"
     TENANTS ||--o{ SESSIONS : "owns"
     TENANTS ||--o{ TEAMS : "owns"
@@ -74,262 +203,13 @@ erDiagram
 
     API_KEYS {
         uuid id PK
-        uuid tenant_id FK "nullable = system key"
+        uuid tenant_id FK "NULL = system key"
         string owner_id
-        string[] scopes
+        text[] scopes
         boolean revoked
     }
 ```
 
-**Master Tenant**: UUID `0193a5b0-7000-7000-8000-000000000001`. All legacy data defaults here. Single-tenant setups work unchanged — everything under master.
+40+ tables carry `tenant_id` with NOT NULL constraint. Exception: `api_keys.tenant_id` is nullable — NULL means system-level cross-tenant key.
 
-**40+ tables** carry `tenant_id` with NOT NULL constraint + foreign key to `tenants(id)`. Exception: `api_keys.tenant_id` is nullable (NULL = system-level cross-tenant key).
-
----
-
-## Authentication Flow
-
-```mermaid
-flowchart TD
-    START([Client Connects]) --> HAS_TOKEN{Has token?}
-
-    HAS_TOKEN -->|Gateway token| GW[System Owner<br/>role=admin, cross-tenant]
-    HAS_TOKEN -->|API key| KEY[Resolve API Key]
-    HAS_TOKEN -->|No token + sender_id| PAIR{Paired device?}
-    HAS_TOKEN -->|No token, no sender| FALLBACK[Fallback<br/>role=operator, master tenant]
-
-    KEY --> KEY_TENANT{Key has tenant_id?}
-    KEY_TENANT -->|Yes| SCOPED[Tenant-Scoped<br/>role from scopes]
-    KEY_TENANT -->|No / NULL| CROSS[Cross-Tenant<br/>system-level key]
-
-    PAIR -->|Yes| PAIRED[Operator<br/>master tenant or tenant_hint]
-    PAIR -->|No| PAIRING[Start Pairing Flow<br/>get 8-char code]
-
-    GW & SCOPED & CROSS & PAIRED & FALLBACK --> CTX[Inject into Context<br/>tenant_id + role + user_id]
-    CTX --> METHODS[All Methods Auto-Scoped]
-```
-
-| Auth Path | Role | Tenant | Cross-Tenant |
-|-----------|------|--------|:---:|
-| Gateway token | admin | all | ✓ |
-| API key (tenant-bound) | from scopes | key's tenant | ✗ |
-| API key (system-level) | from scopes | all | ✓ |
-| Browser pairing | operator | master (or hint) | ✗ |
-| Fallback (no token) | operator | master | ✗ |
-
----
-
-## Authorization — Role & Scope Model
-
-```mermaid
-graph LR
-    subgraph Role Hierarchy
-        ADMIN[admin<br/>level 3] --> OPERATOR[operator<br/>level 2]
-        OPERATOR --> VIEWER[viewer<br/>level 1]
-    end
-
-    subgraph API Key Scopes
-        S1[operator.admin]
-        S2[operator.read]
-        S3[operator.write]
-        S4[operator.approvals]
-        S5[operator.pairing]
-    end
-
-    ADMIN -.->|all methods| METHODS[Method Access]
-    OPERATOR -.->|read + write| METHODS
-    VIEWER -.->|read only| METHODS
-    S1 & S2 & S3 & S4 & S5 -.->|override role| METHODS
-```
-
-**Role determines base access**. API key scopes optionally narrow it further. Admin methods (config, agent CRUD, API key management) require `admin` role. Chat/session operations require `operator`. Read-only browsing requires `viewer`.
-
----
-
-## WebSocket Protocol (v3)
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant G as Gateway
-    participant S as Store (PG)
-
-    C->>G: connect {token, user_id, locale}
-    G->>G: Resolve auth → tenant_id + role
-    G-->>C: {protocol:3, role, user_id, tenant_id, tenant_name, tenant_slug, cross_tenant}
-
-    C->>G: agents.list {}
-    G->>S: SELECT * FROM agents WHERE tenant_id = $1
-    G-->>C: {agents: [...]}
-
-    C->>G: chat.send {agent_key, message}
-    G->>G: Schedule agent loop (tenant ctx)
-    G-->>C: event: agent {type: "chunk", content: "..."}
-    G-->>C: event: agent {type: "run.completed"}
-```
-
-**Frame types**: `req` (client→server), `res` (server→client), `event` (async push).
-**Tenant context**: Injected after `connect`, applied to ALL subsequent method calls automatically.
-**Events**: Server-side filtered — client only receives events matching its tenant. Fail-closed: unknown tenant events are blocked.
-
----
-
-## Event Filtering
-
-```mermaid
-flowchart TD
-    EVENT([Event emitted<br/>e.g. agent chunk]) --> SYS{System event?}
-    SYS -->|Yes: health, presence| DELIVER[Deliver to all]
-    SYS -->|No| TENANT{Client cross-tenant?}
-    TENANT -->|Yes| USER_CHECK
-    TENANT -->|No| MATCH{event.tenant == client.tenant?}
-    MATCH -->|Yes| USER_CHECK{User/team match?}
-    MATCH -->|No| BLOCK[Block ✗]
-
-    USER_CHECK -->|Admin| DELIVER
-    USER_CHECK -->|User matches| DELIVER
-    USER_CHECK -->|Team matches| DELIVER
-    USER_CHECK -->|No match| BLOCK
-```
-
-**Guarantee**: A tenant-scoped client **never** receives events from another tenant. The UI does not need to implement client-side filtering.
-
----
-
-## Data Isolation
-
-```mermaid
-flowchart LR
-    subgraph "Tenant A"
-        A_AGENTS[Agents]
-        A_SESSIONS[Sessions]
-        A_TEAMS[Teams]
-        A_MEMORY[Memory]
-    end
-
-    subgraph "Tenant B"
-        B_AGENTS[Agents]
-        B_SESSIONS[Sessions]
-        B_TEAMS[Teams]
-        B_MEMORY[Memory]
-    end
-
-    subgraph PostgreSQL
-        PG_TABLE[Every table:<br/>WHERE tenant_id = $N]
-    end
-
-    A_AGENTS & A_SESSIONS & A_TEAMS & A_MEMORY --> PG_TABLE
-    B_AGENTS & B_SESSIONS & B_TEAMS & B_MEMORY --> PG_TABLE
-```
-
-**Enforcement layers**:
-
-| Layer | Mechanism |
-|-------|-----------|
-| SQL queries | `WHERE tenant_id = $N` on all SELECT/UPDATE/DELETE |
-| INSERT | `tenantIDForInsert(ctx)` assigns tenant from context |
-| UPDATE | `execMapUpdateWhereTenant()` prevents cross-tenant writes |
-| Cache | Session keys prefixed with `tenantID:` |
-| MCP Pool | Connection keys: `tenantID/serverName` |
-| Fail-closed | Missing tenant → error (not unfiltered query) |
-
----
-
-## Channel → Agent Loop Propagation
-
-```mermaid
-flowchart LR
-    CI[Channel Instance<br/>tenant_id in DB] -->|load| BC[BaseChannel<br/>stores tenantID]
-    BC -->|message| IM[InboundMessage<br/>carries TenantID]
-    IM -->|consumer| CTX[Context Injection<br/>store.WithTenantID]
-    CTX -->|schedule| LOOP[Agent Loop<br/>tenant-scoped operations]
-    LOOP -->|emit| EVT[Events<br/>event.TenantID set from ctx]
-    EVT -->|filter| WS[WS Clients<br/>only matching tenant]
-```
-
-Chat channels (Telegram, Discord, Slack, etc.) inherit `tenant_id` from their channel instance configuration. Every message entering the agent loop carries tenant context end-to-end.
-
----
-
-## Provider Registry
-
-```mermaid
-flowchart TD
-    REQ[Agent requests provider<br/>'anthropic'] --> TRY_TENANT{Tenant-specific<br/>provider exists?}
-    TRY_TENANT -->|Yes| USE_TENANT[Use tenant provider<br/>key: tenantID/anthropic]
-    TRY_TENANT -->|No| USE_MASTER[Fallback to master<br/>key: masterID/anthropic]
-```
-
-LLM providers use compound key `tenantID/providerName`. Tenant-specific providers (custom API keys) override master tenant defaults. This allows per-tenant provider configuration without duplicating all providers.
-
----
-
-## Tenant Management
-
-```mermaid
-flowchart TD
-    ADMIN[System Admin<br/>cross-tenant] -->|tenants.create| CREATE[Create Tenant<br/>name + slug]
-    CREATE --> ADD_USER[tenants.users.add<br/>assign users + roles]
-    ADD_USER --> CREATE_KEY[api_keys.create<br/>tenant-bound key]
-    CREATE_KEY --> SHARE[Share API key<br/>with tenant user]
-
-    USER[Regular User] -->|tenants.mine| LIST_MY[List my tenants<br/>+ roles]
-```
-
-**API Methods**:
-- `tenants.list` / `tenants.get` / `tenants.create` / `tenants.update` — admin only (cross-tenant)
-- `tenants.users.list` / `tenants.users.add` / `tenants.users.remove` — admin only
-- `tenants.mine` — any user, returns own tenant memberships
-
-**Tenant user roles**: owner > admin > operator > member > viewer
-
----
-
-## Integration Pattern
-
-```mermaid
-sequenceDiagram
-    participant SaaS as Your SaaS App
-    participant GC as GoClaw Backend
-    participant PG as PostgreSQL
-
-    Note over SaaS: User signs up in your app
-    SaaS->>GC: POST /v1/tenants {name, slug}
-    GC->>PG: INSERT INTO tenants
-    GC-->>SaaS: {id: "tenant-uuid"}
-
-    SaaS->>GC: POST /v1/tenants/{id}/users {user_id, role}
-    SaaS->>GC: POST /v1/api-keys {tenant_id, scopes}
-    GC-->>SaaS: {key: "goclaw_abc123..."}
-
-    Note over SaaS: User opens dashboard
-    SaaS->>GC: WS connect {token: "goclaw_abc123..."}
-    GC-->>SaaS: {tenant_id, role, tenant_name}
-
-    SaaS->>GC: agents.list
-    GC-->>SaaS: Only this tenant's agents
-
-    SaaS->>GC: chat.send {agent_key, message}
-    GC-->>SaaS: Streaming events (tenant-filtered)
-```
-
-**GoClaw as pure backend**: Your SaaS handles user auth, billing, onboarding. GoClaw handles AI agents, chat, sessions, tools, MCP. API keys bridge the two systems — each key binds a user to a tenant with specific permissions.
-
----
-
-## Security Guarantees
-
-| Threat | Mitigation |
-|--------|-----------|
-| Cross-tenant data access | All SQL queries include `WHERE tenant_id = $N` |
-| Event leakage | Server-side `clientCanReceiveEvent` blocks mismatched tenants |
-| Missing tenant context | Fail-closed: returns error, never unfiltered data |
-| API key theft | Keys are hashed (SHA-256) at rest; only prefix shown in UI |
-| Tenant impersonation | Tenant resolved from API key, not client-supplied header |
-| Privilege escalation | Role derived from API key scopes, not client claims |
-
----
-
-## Migration from Single-Tenant
-
-No changes required. Single-tenant deployments operate entirely under the master tenant. All existing data, agents, sessions, and configurations remain accessible. Multi-tenant features activate only when new tenants are created via the management API.
+**Master tenant** (UUID `0193a5b0-7000-7000-8000-000000000001`): All legacy/default data. Single-tenant deployments use this exclusively.
