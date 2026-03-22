@@ -37,13 +37,14 @@ func (s *PGTeamStore) AddTaskComment(ctx context.Context, comment *store.TeamTas
 }
 
 func (s *PGTeamStore) ListTaskComments(ctx context.Context, taskID uuid.UUID) ([]store.TeamTaskCommentData, error) {
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.id, c.task_id, c.agent_id, c.user_id, c.content, c.created_at,
 		 COALESCE(a.agent_key, '') AS agent_key
 		 FROM team_task_comments c
 		 LEFT JOIN agents a ON a.id = c.agent_id
-		 WHERE c.task_id = $1
-		 ORDER BY c.created_at ASC`, taskID)
+		 WHERE c.task_id = $1 AND c.tenant_id = $2
+		 ORDER BY c.created_at ASC`, taskID, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -69,14 +70,15 @@ func (s *PGTeamStore) ListTaskComments(ctx context.Context, taskID uuid.UUID) ([
 // ListRecentTaskComments returns the N most recent comments for a task (DESC order).
 // Used by dispatch to include context without fetching all comments.
 func (s *PGTeamStore) ListRecentTaskComments(ctx context.Context, taskID uuid.UUID, limit int) ([]store.TeamTaskCommentData, error) {
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.id, c.task_id, c.agent_id, c.user_id, c.content, c.created_at,
 		 COALESCE(a.agent_key, '') AS agent_key
 		 FROM team_task_comments c
 		 LEFT JOIN agents a ON a.id = c.agent_id
-		 WHERE c.task_id = $1
+		 WHERE c.task_id = $1 AND c.tenant_id = $3
 		 ORDER BY c.created_at DESC
-		 LIMIT $2`, taskID, limit)
+		 LIMIT $2`, taskID, limit, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -124,11 +126,12 @@ func (s *PGTeamStore) RecordTaskEvent(ctx context.Context, event *store.TeamTask
 }
 
 func (s *PGTeamStore) ListTaskEvents(ctx context.Context, taskID uuid.UUID) ([]store.TeamTaskEventData, error) {
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, task_id, event_type, actor_type, actor_id, data, created_at
 		 FROM team_task_events
-		 WHERE task_id = $1
-		 ORDER BY created_at ASC`, taskID)
+		 WHERE task_id = $1 AND tenant_id = $2
+		 ORDER BY created_at ASC`, taskID, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -151,14 +154,15 @@ func (s *PGTeamStore) ListTeamEvents(ctx context.Context, teamID uuid.UUID, limi
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT e.id, e.task_id, e.event_type, e.actor_type, e.actor_id, e.data, e.created_at
 		 FROM team_task_events e
 		 JOIN team_tasks t ON t.id = e.task_id
-		 WHERE t.team_id = $1
+		 WHERE t.team_id = $1 AND t.tenant_id = $4
 		 ORDER BY e.created_at DESC
 		 LIMIT $2 OFFSET $3`,
-		teamID, limit, offset)
+		teamID, limit, offset, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -214,10 +218,11 @@ func (s *PGTeamStore) GetAttachment(ctx context.Context, attachmentID uuid.UUID)
 	var agentID *uuid.UUID
 	var senderID sql.NullString
 	var metadata json.RawMessage
+	tid := tenantIDForInsert(ctx)
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, task_id, team_id, chat_id, path, file_size, mime_type,
 		        created_by_agent_id, created_by_sender_id, metadata, created_at
-		 FROM team_task_attachments WHERE id = $1`, attachmentID,
+		 FROM team_task_attachments WHERE id = $1 AND tenant_id = $2`, attachmentID, tid,
 	).Scan(&a.ID, &a.TaskID, &a.TeamID, &a.ChatID, &a.Path, &a.FileSize, &a.MimeType,
 		&agentID, &senderID, &metadata, &a.CreatedAt)
 	if err != nil {
@@ -232,12 +237,13 @@ func (s *PGTeamStore) GetAttachment(ctx context.Context, attachmentID uuid.UUID)
 }
 
 func (s *PGTeamStore) ListTaskAttachments(ctx context.Context, taskID uuid.UUID) ([]store.TeamTaskAttachmentData, error) {
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, task_id, team_id, chat_id, path, file_size, mime_type,
 		        created_by_agent_id, created_by_sender_id, metadata, created_at
 		 FROM team_task_attachments
-		 WHERE task_id = $1
-		 ORDER BY created_at ASC`, taskID)
+		 WHERE task_id = $1 AND tenant_id = $2
+		 ORDER BY created_at ASC`, taskID, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -264,9 +270,10 @@ func (s *PGTeamStore) ListTaskAttachments(ctx context.Context, taskID uuid.UUID)
 }
 
 func (s *PGTeamStore) DetachFileFromTask(ctx context.Context, taskID uuid.UUID, path string) error {
+	tid := tenantIDForInsert(ctx)
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM team_task_attachments WHERE task_id = $1 AND path = $2`,
-		taskID, path,
+		`DELETE FROM team_task_attachments WHERE task_id = $1 AND path = $2 AND tenant_id = $3`,
+		taskID, path, tid,
 	)
 	if err != nil {
 		return err

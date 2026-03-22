@@ -97,5 +97,24 @@
     "failedCreate": "Failed to create MCP server",
     "failedUpdate": "Failed to update MCP server",
     "failedDelete": "Failed to delete MCP server"
+  },
+  "userCredentials": {
+    "title": "My Credentials",
+    "description": "Set your personal credentials for this MCP server. These override the server defaults for your account only.",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Leave empty to keep current",
+    "headers": "Headers",
+    "env": "Environment Variables",
+    "headerPlaceholder": "KEY=VALUE, one per line",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteAll": "Delete All",
+    "cancel": "Cancel",
+    "saved": "Credentials saved",
+    "deleted": "Credentials deleted",
+    "hasApiKey": "API Key set",
+    "hasHeaders": "Headers set",
+    "hasEnv": "Env vars set",
+    "noCredentials": "No credentials set"
   }
 }

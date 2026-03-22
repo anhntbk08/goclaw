@@ -80,6 +80,11 @@
     "deprecatedTooltip": "Công cụ này đã ngừng sử dụng và không còn khả dụng",
     "settings": "Cài đặt",
     "configuredVia": "Cấu hình qua trang Config",
+    "tenantOverride": "Ghi đè tenant",
+    "tenantEnabled": "Bật cho tenant này",
+    "tenantDisabled": "Tắt cho tenant này",
+    "tenantDefault": "Dùng mặc định",
+    "resetToDefault": "Đặt lại mặc định",
     "categories": {
       "filesystem": "Hệ thống tệp",
       "runtime": "Thời gian chạy",

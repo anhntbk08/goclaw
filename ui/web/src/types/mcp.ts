@@ -46,3 +46,16 @@ export interface MCPAgentGrant {
   granted_by: string;
   created_at: string;
 }
+
+export interface MCPUserCredentialStatus {
+  has_credentials: boolean;
+  has_api_key: boolean;
+  has_headers: boolean;
+  has_env: boolean;
+}
+
+export interface MCPUserCredentialInput {
+  api_key?: string;
+  headers?: Record<string, string>;
+  env?: Record<string, string>;
+}

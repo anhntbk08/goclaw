@@ -21,11 +21,12 @@ func (s *PGTeamStore) UpdateTaskProgress(ctx context.Context, taskID, teamID uui
 	// Also renews lock_expires_at as a heartbeat.
 	now := time.Now()
 	lockExpires := now.Add(taskLockDuration)
+	tid := tenantIDForInsert(ctx)
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE team_tasks SET progress_percent = $1, progress_step = $2, lock_expires_at = $3, updated_at = $4
-		 WHERE id = $5 AND status = $6 AND team_id = $7`,
+		 WHERE id = $5 AND status = $6 AND team_id = $7 AND tenant_id = $8`,
 		percent, step, lockExpires, now,
-		taskID, store.TeamTaskStatusInProgress, teamID,
+		taskID, store.TeamTaskStatusInProgress, teamID, tid,
 	)
 	if err != nil {
 		return err
@@ -46,11 +47,12 @@ func (s *PGTeamStore) UpdateTaskProgress(ctx context.Context, taskID, teamID uui
 func (s *PGTeamStore) RenewTaskLock(ctx context.Context, taskID, teamID uuid.UUID) error {
 	now := time.Now()
 	lockExpires := now.Add(taskLockDuration)
+	tid := tenantIDForInsert(ctx)
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE team_tasks SET lock_expires_at = $1, updated_at = $2
-		 WHERE id = $3 AND team_id = $4 AND status = $5`,
+		 WHERE id = $3 AND team_id = $4 AND status = $5 AND tenant_id = $6`,
 		lockExpires, now,
-		taskID, teamID, store.TeamTaskStatusInProgress,
+		taskID, teamID, store.TeamTaskStatusInProgress, tid,
 	)
 	if err != nil {
 		return err
@@ -120,17 +122,19 @@ func (s *PGTeamStore) ForceRecoverAllTasks(ctx context.Context) ([]store.Recover
 // Used by DispatchUnblockedTasks after task completion.
 func (s *PGTeamStore) ListRecoverableTasks(ctx context.Context, teamID uuid.UUID) ([]store.TeamTaskData, error) {
 	now := time.Now()
+	tid := tenantIDForInsert(ctx)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT `+taskSelectCols+`
 		 `+taskJoinClause+`
 		 WHERE t.team_id = $1
+		   AND t.tenant_id = $6
 		   AND (
 		     t.status = $2
 		     OR (t.status = $3 AND t.lock_expires_at IS NOT NULL AND t.lock_expires_at < $4)
 		   )
 		 ORDER BY t.priority DESC, t.created_at
 		 LIMIT $5`,
-		teamID, store.TeamTaskStatusPending, store.TeamTaskStatusInProgress, now, maxListTasksRows)
+		teamID, store.TeamTaskStatusPending, store.TeamTaskStatusInProgress, now, maxListTasksRows, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -179,12 +183,13 @@ func scanRecoveredTaskInfoRows(rows interface {
 
 func (s *PGTeamStore) ResetTaskStatus(ctx context.Context, taskID, teamID uuid.UUID) error {
 	now := time.Now()
+	tid := tenantIDForInsert(ctx)
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE team_tasks SET status = $1, locked_at = NULL, lock_expires_at = NULL, result = NULL,
 		 progress_percent = NULL, progress_step = NULL, updated_at = $2
-		 WHERE id = $3 AND team_id = $4 AND status IN ($5, $6)`,
+		 WHERE id = $3 AND team_id = $4 AND status IN ($5, $6) AND tenant_id = $7`,
 		store.TeamTaskStatusPending, now,
-		taskID, teamID, store.TeamTaskStatusStale, store.TeamTaskStatusFailed,
+		taskID, teamID, store.TeamTaskStatusStale, store.TeamTaskStatusFailed, tid,
 	)
 	if err != nil {
 		return err

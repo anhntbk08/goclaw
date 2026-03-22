@@ -18,6 +18,7 @@ import { useBuiltinTools, type BuiltinToolData } from "./hooks/use-builtin-tools
 import { BuiltinToolSettingsDialog } from "./builtin-tool-settings-dialog";
 import { useMinLoading } from "@/hooks/use-min-loading";
 import { useDeferredLoading } from "@/hooks/use-deferred-loading";
+import { useTenants } from "@/hooks/use-tenants";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -40,7 +41,8 @@ function isDeprecated(tool: BuiltinToolData): boolean {
 
 export function BuiltinToolsPage() {
   const { t } = useTranslation("tools");
-  const { tools, loading, refresh, updateTool } = useBuiltinTools();
+  const { tools, loading, refresh, updateTool, setTenantConfig, deleteTenantConfig } = useBuiltinTools();
+  const { currentTenantId } = useTenants();
   const spinning = useMinLoading(loading);
   const showSkeleton = useDeferredLoading(loading && tools.length === 0);
   const [search, setSearch] = useState("");
@@ -124,6 +126,9 @@ export function BuiltinToolsPage() {
               tools={grouped.get(category)!}
               onToggle={handleToggle}
               onSettings={setSettingsTool}
+              tenantId={currentTenantId ?? null}
+              onSetTenantConfig={setTenantConfig}
+              onDeleteTenantConfig={deleteTenantConfig}
             />
           ))
         )}
@@ -146,11 +151,17 @@ function CategoryGroup({
   tools,
   onToggle,
   onSettings,
+  tenantId,
+  onSetTenantConfig,
+  onDeleteTenantConfig,
 }: {
   category: string;
   tools: BuiltinToolData[];
   onToggle: (tool: BuiltinToolData) => void;
   onSettings: (tool: BuiltinToolData) => void;
+  tenantId: string | null;
+  onSetTenantConfig: (name: string, enabled: boolean) => Promise<void>;
+  onDeleteTenantConfig: (name: string) => Promise<void>;
 }) {
   const { t } = useTranslation("tools");
   return (
@@ -163,7 +174,15 @@ function CategoryGroup({
       </div>
       <div className="divide-y">
         {tools.map((tool) => (
-          <ToolRow key={tool.name} tool={tool} onToggle={onToggle} onSettings={onSettings} />
+          <ToolRow
+            key={tool.name}
+            tool={tool}
+            onToggle={onToggle}
+            onSettings={onSettings}
+            tenantId={tenantId}
+            onSetTenantConfig={onSetTenantConfig}
+            onDeleteTenantConfig={onDeleteTenantConfig}
+          />
         ))}
       </div>
     </div>
@@ -174,15 +193,23 @@ function ToolRow({
   tool,
   onToggle,
   onSettings,
+  tenantId,
+  onSetTenantConfig,
+  onDeleteTenantConfig,
 }: {
   tool: BuiltinToolData;
   onToggle: (tool: BuiltinToolData) => void;
   onSettings: (tool: BuiltinToolData) => void;
+  tenantId: string | null;
+  onSetTenantConfig: (name: string, enabled: boolean) => Promise<void>;
+  onDeleteTenantConfig: (name: string) => Promise<void>;
 }) {
   const { t } = useTranslation("tools");
   const configHint = getConfigHint(tool);
   const editable = hasEditableSettings(tool);
   const deprecated = isDeprecated(tool);
+  const hasTenantScope = !!tenantId && tenantId !== "00000000-0000-0000-0000-000000000000";
+  const hasOverride = tool.tenant_enabled !== null && tool.tenant_enabled !== undefined;
 
   return (
     <div className={`flex items-center gap-4 px-4 py-2 hover:bg-muted/30 transition-colors${deprecated ? " opacity-60" : ""}`}>
@@ -253,12 +280,93 @@ function ToolRow({
             </Tooltip>
           </TooltipProvider>
         )}
+        {hasTenantScope && !deprecated && (
+          <TenantOverrideControl
+            tool={tool}
+            hasOverride={hasOverride}
+            onSetTenantConfig={onSetTenantConfig}
+            onDeleteTenantConfig={onDeleteTenantConfig}
+          />
+        )}
         <Switch
           checked={tool.enabled}
           onCheckedChange={() => onToggle(tool)}
           disabled={deprecated}
         />
       </div>
+    </div>
+  );
+}
+
+function TenantOverrideControl({
+  tool,
+  hasOverride,
+  onSetTenantConfig,
+  onDeleteTenantConfig,
+}: {
+  tool: BuiltinToolData;
+  hasOverride: boolean;
+  onSetTenantConfig: (name: string, enabled: boolean) => Promise<void>;
+  onDeleteTenantConfig: (name: string) => Promise<void>;
+}) {
+  const { t } = useTranslation("tools");
+
+  const tenantEnabled = tool.tenant_enabled;
+  const overrideLabel = hasOverride
+    ? tenantEnabled
+      ? t("builtin.tenantEnabled")
+      : t("builtin.tenantDisabled")
+    : t("builtin.tenantDefault");
+
+  const badgeVariant = hasOverride
+    ? tenantEnabled
+      ? "default"
+      : "secondary"
+    : "outline";
+
+  return (
+    <div className="flex items-center gap-1 border-r pr-2 mr-0.5">
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant={badgeVariant}
+              className="h-5 cursor-default px-1.5 text-[10px] leading-none"
+            >
+              {overrideLabel}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-xs">{t("builtin.tenantOverride")}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <Switch
+        checked={hasOverride ? (tenantEnabled ?? false) : tool.enabled}
+        onCheckedChange={(checked) => onSetTenantConfig(tool.name, checked)}
+        className="scale-75 origin-right"
+        aria-label={t("builtin.tenantOverride")}
+      />
+      {hasOverride && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDeleteTenantConfig(tool.name)}
+                className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                aria-label={t("builtin.resetToDefault")}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs">{t("builtin.resetToDefault")}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
