@@ -10,6 +10,7 @@ import (
 
 	"github.com/nextlevelbuilder/goclaw/internal/agent"
 	"github.com/nextlevelbuilder/goclaw/internal/bus"
+	httpapi "github.com/nextlevelbuilder/goclaw/internal/http"
 	"github.com/nextlevelbuilder/goclaw/internal/channels/media"
 	"github.com/nextlevelbuilder/goclaw/internal/gateway"
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
@@ -22,16 +23,20 @@ import (
 
 // ChatMethods handles chat.send, chat.history, chat.abort, chat.inject.
 type ChatMethods struct {
-	agents      *agent.Router
-	sessions    store.SessionStore
-	rateLimiter *gateway.RateLimiter
-	eventBus    bus.EventPublisher
-	postTurn    tools.PostTurnProcessor
+	agents         *agent.Router
+	sessions       store.SessionStore
+	rateLimiter    *gateway.RateLimiter
+	eventBus       bus.EventPublisher
+	postTurn       tools.PostTurnProcessor
+	fileTokenSecret string // HMAC secret for signing file URLs at delivery time
 }
 
 func NewChatMethods(agents *agent.Router, sess store.SessionStore, rl *gateway.RateLimiter, eventBus bus.EventPublisher) *ChatMethods {
 	return &ChatMethods{agents: agents, sessions: sess, rateLimiter: rl, eventBus: eventBus}
 }
+
+// SetFileTokenSecret sets the HMAC secret used to sign file URLs before delivery.
+func (m *ChatMethods) SetFileTokenSecret(secret string) { m.fileTokenSecret = secret }
 
 // SetPostTurnProcessor sets the post-turn processor for team task dispatch.
 func (m *ChatMethods) SetPostTurnProcessor(pt tools.PostTurnProcessor) {
@@ -277,6 +282,13 @@ func (m *ChatMethods) handleHistory(ctx context.Context, client *gateway.Client,
 	}
 
 	history := m.sessions.GetHistory(ctx, sessionKey)
+
+	// Sign file URLs before delivery — sessions store clean paths.
+	if m.fileTokenSecret != "" {
+		for i := range history {
+			history[i].Content = httpapi.SignFileURLs(history[i].Content, m.fileTokenSecret)
+		}
+	}
 
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"messages": history,

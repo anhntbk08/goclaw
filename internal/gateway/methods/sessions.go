@@ -7,6 +7,7 @@ import (
 	"github.com/nextlevelbuilder/goclaw/internal/bus"
 	"github.com/nextlevelbuilder/goclaw/internal/config"
 	"github.com/nextlevelbuilder/goclaw/internal/gateway"
+	httpapi "github.com/nextlevelbuilder/goclaw/internal/http"
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 	"github.com/nextlevelbuilder/goclaw/pkg/protocol"
@@ -92,6 +93,14 @@ func (m *SessionsMethods) handlePreview(ctx context.Context, client *gateway.Cli
 
 	history := m.sessions.GetHistory(ctx, params.Key)
 	summary := m.sessions.GetSummary(ctx, params.Key)
+
+	// Sign file URLs before delivery — sessions store clean paths.
+	if secret := m.cfg.Gateway.Token; secret != "" {
+		for i := range history {
+			history[i].Content = httpapi.SignFileURLs(history[i].Content, secret)
+		}
+		summary = httpapi.SignFileURLs(summary, secret)
+	}
 
 	client.SendResponse(protocol.NewOKResponse(req.ID, map[string]any{
 		"key":      params.Key,

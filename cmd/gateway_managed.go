@@ -8,9 +8,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"strings"
+
 	"github.com/nextlevelbuilder/goclaw/internal/agent"
 	"github.com/nextlevelbuilder/goclaw/internal/bus"
 	"github.com/nextlevelbuilder/goclaw/internal/config"
+	httpapi "github.com/nextlevelbuilder/goclaw/internal/http"
 	kg "github.com/nextlevelbuilder/goclaw/internal/knowledgegraph"
 	mcpbridge "github.com/nextlevelbuilder/goclaw/internal/mcp"
 	"github.com/nextlevelbuilder/goclaw/internal/media"
@@ -161,6 +164,13 @@ func wireExtras(
 		SkillTenantCfgs:        stores.SkillTenantCfgs,
 		Workspace:              workspace,
 		OnEvent: func(event agent.AgentEvent) {
+			// Sign /v1/files/ and /v1/media/ URLs in content before delivery.
+			// Sessions store clean paths; signing happens only at delivery time.
+			if m, ok := event.Payload.(map[string]string); ok {
+				if c, has := m["content"]; has && strings.Contains(c, "/v1/") {
+					m["content"] = httpapi.SignFileURLs(c, appCfg.Gateway.Token)
+				}
+			}
 			msgBus.Broadcast(bus.Event{
 				Name:     protocol.EventAgent,
 				Payload:  event,

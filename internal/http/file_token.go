@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -42,4 +43,28 @@ func fileTokenHMAC(path, secret string, expiry int64) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(fmt.Sprintf("%s:%d", path, expiry)))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:16])
+}
+
+// fileURLRe matches /v1/files/... and /v1/media/... URLs in markdown and plain text.
+// Captures the full URL path (stops at whitespace, closing paren, quote, or angle bracket).
+var fileURLRe = regexp.MustCompile(`(/v1/(?:files|media)/[^\s)"'<>]+)`)
+
+// SignFileURLs finds all /v1/files/ and /v1/media/ URLs in content and appends
+// a signed ?ft= token. Used at delivery time (WS events, HTTP responses) to avoid
+// persisting tokens in session messages. Skips URLs that already have ?ft=.
+func SignFileURLs(content, secret string) string {
+	if secret == "" || !strings.Contains(content, "/v1/") {
+		return content
+	}
+	return fileURLRe.ReplaceAllStringFunc(content, func(url string) string {
+		if strings.Contains(url, "ft=") {
+			return url // already signed
+		}
+		ft := SignFileToken(url, secret, FileTokenTTL)
+		sep := "?"
+		if strings.Contains(url, "?") {
+			sep = "&"
+		}
+		return url + sep + "ft=" + ft
+	})
 }
