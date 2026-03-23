@@ -139,9 +139,9 @@ function UserMenu() {
           title={userId || t("logout")}
         >
           <User className="h-4 w-4 shrink-0" />
-          {tenantLabel && (
-            <span className="max-w-24 truncate hidden sm:inline">{tenantLabel}</span>
-          )}
+          <span className="max-w-32 truncate hidden sm:inline">
+            {userId}{tenantLabel ? ` (${tenantLabel})` : ""}
+          </span>
           <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
         </button>
       </Popover.Trigger>
@@ -151,10 +151,10 @@ function UserMenu() {
           sideOffset={8}
           className="z-50 w-56 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 pointer-events-auto"
         >
-          {/* User info */}
-          {userId && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground truncate border-b mb-1">
-              {userId}
+          {/* Tenant name */}
+          {tenantLabel && (
+            <div className="px-2 py-1.5 text-sm font-medium truncate border-b mb-1">
+              {tenantLabel}
             </div>
           )}
 
@@ -184,6 +184,17 @@ function UserMenu() {
               ))}
               <div className="my-1 border-t" />
             </>
+          )}
+
+          {/* Tenants */}
+          {isMultiTenant && (
+            <button
+              onClick={() => { setOpen(false); navigate(ROUTES.TENANTS); }}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <Building2 className="h-3.5 w-3.5 shrink-0" />
+              <span>{tt("title")}</span>
+            </button>
           )}
 
           {/* API Keys shortcut */}

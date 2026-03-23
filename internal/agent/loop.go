@@ -186,7 +186,8 @@ func (l *Loop) runLoop(ctx context.Context, req RunRequest) (*RunResult, error) 
 			if tools.IsSharedWorkspace(team.Settings) {
 				wsChat = ""
 			}
-			if wsDir, err := tools.WorkspaceDir(l.dataDir, team.ID, wsChat); err == nil {
+			tenantBase := config.TenantWorkspace(l.dataDir, store.TenantIDFromContext(ctx), store.TenantSlugFromContext(ctx))
+			if wsDir, err := tools.WorkspaceDir(tenantBase, team.ID, wsChat); err == nil {
 				ctx = tools.WithToolTeamWorkspace(ctx, wsDir)
 				if team.LeadAgentID == l.agentUUID {
 					ctx = tools.WithToolWorkspace(ctx, wsDir)
