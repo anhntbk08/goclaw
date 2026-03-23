@@ -117,11 +117,10 @@ func agentCacheKey(ctx context.Context, agentID string) string {
 	return tid.String() + ":" + agentID
 }
 
-// Remove removes an agent from the router.
+// Remove removes an agent from the router cache.
+// Delegates to InvalidateAgent for tenant-aware key matching.
 func (r *Router) Remove(agentID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.agents, agentID)
+	r.InvalidateAgent(agentID)
 }
 
 // List returns all registered agent IDs.
