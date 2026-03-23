@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,42 @@ func (m *TeamsMethods) RegisterWorkspace(router *gateway.MethodRouter) {
 	router.Register(protocol.MethodTeamsWorkspaceList, m.handleWorkspaceList)
 	router.Register(protocol.MethodTeamsWorkspaceRead, m.handleWorkspaceRead)
 	router.Register(protocol.MethodTeamsWorkspaceDelete, m.handleWorkspaceDelete)
+}
+
+// resolveWorkspacePath resolves fileName within scopeDir and validates that the
+// canonical path (after symlink resolution) stays inside the scope directory.
+// Returns the resolved disk path or an error if the path escapes the boundary.
+func resolveWorkspacePath(scopeDir, fileName string) (string, error) {
+	diskPath := filepath.Clean(filepath.Join(scopeDir, fileName))
+
+	// Resolve scope dir to canonical form.
+	scopeReal, err := filepath.EvalSymlinks(filepath.Clean(scopeDir))
+	if err != nil {
+		scopeReal = filepath.Clean(scopeDir)
+	}
+
+	// Resolve target path — follow symlinks to detect escapes.
+	diskReal, err := filepath.EvalSymlinks(diskPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			slog.Warn("security.workspace_path_resolve_failed", "path", fileName, "error", err)
+			return "", fmt.Errorf("invalid file_name")
+		}
+		// File doesn't exist yet — validate parent directory.
+		parentReal, parentErr := filepath.EvalSymlinks(filepath.Dir(diskPath))
+		if parentErr != nil {
+			return "", fmt.Errorf("invalid file_name")
+		}
+		diskReal = filepath.Join(parentReal, filepath.Base(diskPath))
+	}
+
+	// Boundary check: canonical path must be inside canonical scope.
+	if diskReal != scopeReal && !strings.HasPrefix(diskReal, scopeReal+string(filepath.Separator)) {
+		slog.Warn("security.workspace_path_escape", "path", fileName, "resolved", diskReal, "scope", scopeReal)
+		return "", fmt.Errorf("invalid file_name")
+	}
+
+	return diskPath, nil
 }
 
 // teamWorkspaceDir returns the base directory for a team's workspace files.
@@ -213,10 +250,9 @@ func (m *TeamsMethods) handleWorkspaceRead(ctx context.Context, client *gateway.
 	}
 
 	scopeDir := teamWorkspaceDir(ctx, m.dataDir, teamID, chatID)
-	diskPath := filepath.Clean(filepath.Join(scopeDir, params.FileName))
-	// Ensure resolved path stays within the workspace scope directory.
-	if !strings.HasPrefix(diskPath, filepath.Clean(scopeDir)+string(os.PathSeparator)) && diskPath != filepath.Clean(scopeDir) {
-		client.SendResponse(protocol.NewErrorResponse(req.ID, protocol.ErrInvalidRequest, "invalid file_name"))
+	diskPath, pathErr := resolveWorkspacePath(scopeDir, params.FileName)
+	if pathErr != nil {
+		client.SendResponse(protocol.NewErrorResponse(req.ID, protocol.ErrInvalidRequest, pathErr.Error()))
 		return
 	}
 	data, err := os.ReadFile(diskPath)
@@ -289,10 +325,9 @@ func (m *TeamsMethods) handleWorkspaceDelete(ctx context.Context, client *gatewa
 	}
 
 	scopeDir := teamWorkspaceDir(ctx, m.dataDir, teamID, chatID)
-	diskPath := filepath.Clean(filepath.Join(scopeDir, params.FileName))
-	// Ensure resolved path stays within the workspace scope directory.
-	if !strings.HasPrefix(diskPath, filepath.Clean(scopeDir)+string(os.PathSeparator)) && diskPath != filepath.Clean(scopeDir) {
-		client.SendResponse(protocol.NewErrorResponse(req.ID, protocol.ErrInvalidRequest, "invalid file_name"))
+	diskPath, pathErr := resolveWorkspacePath(scopeDir, params.FileName)
+	if pathErr != nil {
+		client.SendResponse(protocol.NewErrorResponse(req.ID, protocol.ErrInvalidRequest, pathErr.Error()))
 		return
 	}
 	if err := os.Remove(diskPath); err != nil {

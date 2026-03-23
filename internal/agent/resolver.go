@@ -216,6 +216,12 @@ func NewManagedResolver(deps ResolverDeps) ResolverFunc {
 			sandboxCfgOverride = &resolved
 		}
 
+		// Resolve tenant slug once for workspace + dataDir scoping.
+		var tenantSlug string
+		if ag.TenantID != store.MasterTenantID && ag.TenantID != uuid.Nil {
+			tenantSlug = resolveTenantSlug(deps.TenantStore, ag.TenantID)
+		}
+
 		// Expand ~ in workspace path and ensure directory exists.
 		// For non-master tenants, prefix workspace with tenant slug directory.
 		workspace := ag.Workspace
@@ -225,8 +231,7 @@ func NewManagedResolver(deps ResolverDeps) ResolverFunc {
 				workspace, _ = filepath.Abs(workspace)
 			}
 		}
-		if ag.TenantID != store.MasterTenantID && ag.TenantID != uuid.Nil {
-			tenantSlug := resolveTenantSlug(deps.TenantStore, ag.TenantID)
+		if tenantSlug != "" {
 			if deps.Workspace != "" {
 				workspace = config.TenantWorkspace(deps.Workspace, ag.TenantID, tenantSlug)
 			}
@@ -329,8 +334,7 @@ func NewManagedResolver(deps ResolverDeps) ResolverFunc {
 
 		// Resolve tenant-scoped DataDir for team workspace resolution.
 		dataDir := deps.DataDir
-		if ag.TenantID != store.MasterTenantID && ag.TenantID != uuid.Nil {
-			tenantSlug := resolveTenantSlug(deps.TenantStore, ag.TenantID)
+		if tenantSlug != "" {
 			dataDir = config.TenantDataDir(deps.DataDir, ag.TenantID, tenantSlug)
 		}
 

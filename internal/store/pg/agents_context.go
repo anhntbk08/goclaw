@@ -143,6 +143,11 @@ func (s *PGAgentStore) ListUserInstances(ctx context.Context, agentID uuid.UUID)
 	if err != nil {
 		return nil, err
 	}
+	// Tenant-scope the file count subquery to prevent cross-tenant leakage.
+	subTenantFilter := ""
+	if !store.IsCrossTenant(ctx) {
+		subTenantFilter = " AND tenant_id = $2"
+	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT p.user_id,
 		       TO_CHAR(p.first_seen_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS first_seen_at,
@@ -153,7 +158,7 @@ func (s *PGAgentStore) ListUserInstances(ctx context.Context, agentID uuid.UUID)
 		LEFT JOIN (
 		    SELECT user_id, COUNT(*) AS cnt
 		    FROM user_context_files
-		    WHERE agent_id = $1
+		    WHERE agent_id = $1`+subTenantFilter+`
 		    GROUP BY user_id
 		) fc ON fc.user_id = p.user_id
 		WHERE p.agent_id = $1`+tClause+`

@@ -170,6 +170,83 @@ func (m *TeamToolManager) cachedListMembers(ctx context.Context, teamID uuid.UUI
 	return m.teamStore.ListMembers(ctx, teamID)
 }
 
+// preWarmAgentKeyCache batch-fetches agents by key and populates the cache.
+// Reduces N+1 queries when rendering task lists with agent display names.
+func (m *TeamToolManager) preWarmAgentKeyCache(ctx context.Context, keys []string) {
+	// Deduplicate and filter already-cached keys.
+	unique := make(map[string]bool)
+	var missing []string
+	for _, k := range keys {
+		if k == "" || unique[k] {
+			continue
+		}
+		unique[k] = true
+		ck := agentKeyCacheKey(ctx, k)
+		if entry, ok := m.agentKeyCache.Load(ck); ok {
+			ce := entry.(*agentCacheEntry)
+			if time.Since(ce.cachedAt) < teamCacheTTL {
+				continue // still valid
+			}
+		}
+		missing = append(missing, k)
+	}
+	if len(missing) == 0 {
+		return
+	}
+
+	agents, err := m.agentStore.GetByKeys(ctx, missing)
+	if err != nil {
+		slog.Debug("preWarmAgentKeyCache: batch fetch failed", "error", err)
+		return
+	}
+	now := time.Now()
+	for i := range agents {
+		ag := &agents[i]
+		e := &agentCacheEntry{agent: ag, cachedAt: now}
+		ck := agentKeyCacheKey(ctx, ag.AgentKey)
+		m.agentKeyCache.Store(ck, e)
+		m.agentCache.Store(ag.ID, e)
+	}
+}
+
+// preWarmAgentIDCache batch-fetches agents by UUID and populates the cache.
+// Reduces N+1 queries when rendering task comments with agent keys.
+func (m *TeamToolManager) preWarmAgentIDCache(ctx context.Context, ids []uuid.UUID) {
+	// Deduplicate and filter already-cached IDs.
+	seen := make(map[uuid.UUID]bool)
+	var missing []uuid.UUID
+	for _, id := range ids {
+		if id == uuid.Nil || seen[id] {
+			continue
+		}
+		seen[id] = true
+		if entry, ok := m.agentCache.Load(id); ok {
+			ce := entry.(*agentCacheEntry)
+			if time.Since(ce.cachedAt) < teamCacheTTL {
+				continue
+			}
+		}
+		missing = append(missing, id)
+	}
+	if len(missing) == 0 {
+		return
+	}
+
+	agents, err := m.agentStore.GetByIDs(ctx, missing)
+	if err != nil {
+		slog.Debug("preWarmAgentIDCache: batch fetch failed", "error", err)
+		return
+	}
+	now := time.Now()
+	for i := range agents {
+		ag := &agents[i]
+		e := &agentCacheEntry{agent: ag, cachedAt: now}
+		m.agentCache.Store(ag.ID, e)
+		ck := agentKeyCacheKey(ctx, ag.AgentKey)
+		m.agentKeyCache.Store(ck, e)
+	}
+}
+
 // resolveAgentByKey looks up an agent by key and returns its UUID.
 // Uses the caller's tenant-scoped context for isolation.
 func (m *TeamToolManager) resolveAgentByKey(ctx context.Context, key string) (uuid.UUID, error) {
