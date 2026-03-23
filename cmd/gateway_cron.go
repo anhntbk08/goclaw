@@ -21,7 +21,7 @@ import (
 // Safe because cron jobs only fire after Start(), well after this is set.
 var cronHeartbeatWakeFn func(agentID string)
 
-func makeCronJobHandler(sched *scheduler.Scheduler, msgBus *bus.MessageBus, cfg *config.Config, channelMgr *channels.Manager) func(job *store.CronJob) (*store.CronJobResult, error) {
+func makeCronJobHandler(sched *scheduler.Scheduler, msgBus *bus.MessageBus, cfg *config.Config, channelMgr *channels.Manager, sessionStore store.SessionStore) func(job *store.CronJob) (*store.CronJobResult, error) {
 	return func(job *store.CronJob) (*store.CronJobResult, error) {
 		agentID := job.AgentID
 		if agentID == "" {
@@ -62,6 +62,11 @@ func makeCronJobHandler(sched *scheduler.Scheduler, msgBus *bus.MessageBus, cfg 
 
 		// Build context with tenant scope so agent loop events are scoped correctly.
 		cronCtx := store.WithTenantID(context.Background(), job.TenantID)
+
+		// Reset session before each cron run to prevent stale messages from
+		// previous failed attempts polluting history on retry (#379).
+		sessionStore.Reset(cronCtx, sessionKey)
+		sessionStore.Save(cronCtx, sessionKey)
 
 		// Schedule through cron lane — scheduler handles agent resolution and concurrency
 		outCh := sched.Schedule(cronCtx, scheduler.LaneCron, agent.RunRequest{
