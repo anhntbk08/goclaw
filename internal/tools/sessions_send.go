@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nextlevelbuilder/goclaw/internal/bus"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 )
@@ -68,11 +69,11 @@ func (t *SessionsSendTool) Execute(ctx context.Context, args map[string]any) *Re
 		return ErrorResult("either session_key or label is required")
 	}
 
-	agentID := resolveAgentIDString(ctx)
+	agentKey := resolveAgentKey(ctx)
 
 	// Resolve by label if needed
 	if sessionKey == "" && label != "" {
-		sessions := t.sessions.List(ctx, agentID)
+		sessions := t.sessions.List(ctx, agentKey)
 		for _, s := range sessions {
 			// Check if label matches by loading session data
 			data := t.sessions.GetOrCreate(ctx, s.Key)
@@ -87,7 +88,7 @@ func (t *SessionsSendTool) Execute(ctx context.Context, args map[string]any) *Re
 	}
 
 	// Security: validate target session belongs to same agent
-	if agentID != "" && !strings.HasPrefix(sessionKey, "agent:"+agentID+":") {
+	if agentKey != "" && !strings.HasPrefix(sessionKey, "agent:"+agentKey+":") {
 		return ErrorResult("access denied: target session belongs to a different agent")
 	}
 
@@ -108,10 +109,18 @@ func (t *SessionsSendTool) Execute(ctx context.Context, args map[string]any) *Re
 // helpers
 // ============================================================
 
-func resolveAgentIDString(ctx context.Context) string {
+// resolveAgentKey returns the agent string key from context (e.g. "default", "my-agent").
+// Used for session key prefix matching where keys follow "agent:<key>:<rest>".
+func resolveAgentKey(ctx context.Context) string {
+	return store.AgentKeyFromContext(ctx)
+}
+
+// resolveAgentUUIDString returns the agent UUID as a string from context.
+// Used for DB operations where agent_id is stored as UUID.
+func resolveAgentUUIDString(ctx context.Context) string {
 	id := store.AgentIDFromContext(ctx)
-	if id.String() == "00000000-0000-0000-0000-000000000000" {
-		return "" // no agent ID in context
+	if id == uuid.Nil {
+		return ""
 	}
 	return id.String()
 }

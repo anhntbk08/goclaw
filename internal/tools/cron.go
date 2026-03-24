@@ -149,7 +149,7 @@ func (t *CronTool) Execute(ctx context.Context, args map[string]any) *Result {
 		}
 	}
 
-	agentID := resolveAgentIDString(ctx)
+	agentID := resolveAgentUUIDString(ctx)
 	userID := store.UserIDFromContext(ctx)
 
 	switch action {

@@ -71,8 +71,8 @@ func (t *SessionsHistoryTool) Execute(ctx context.Context, args map[string]any) 
 	includeTools, _ := args["include_tools"].(bool)
 
 	// Security: validate session belongs to current agent
-	agentID := resolveAgentIDString(ctx)
-	if agentID != "" && !strings.HasPrefix(sessionKey, "agent:"+agentID+":") {
+	agentKey := resolveAgentKey(ctx)
+	if agentKey != "" && !strings.HasPrefix(sessionKey, "agent:"+agentKey+":") {
 		return ErrorResult("access denied: session belongs to a different agent")
 	}
 
