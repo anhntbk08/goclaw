@@ -1,4 +1,4 @@
-//go:build sqlite
+//go:build sqlite || sqliteonly
 
 package sqlitestore
 
@@ -25,10 +25,23 @@ func NewSQLiteStores(cfg store.StoreConfig) (*store.Stores, error) {
 
 	slog.Info("sqlite stores initialized", "path", cfg.SQLitePath)
 
-	// TODO: Wire all 27 store implementations as they are created.
-	// Each store will be added incrementally (Phase 1 → Phase 3).
 	return &store.Stores{
-		DB: db,
-		// Phase 1 stores will be wired here.
+		DB:                    db,
+		Sessions:              NewSQLiteSessionStore(db),
+		Agents:                NewSQLiteAgentStore(db),
+		Providers:             NewSQLiteProviderStore(db, cfg.EncryptionKey),
+		Tracing:               NewSQLiteTracingStore(db),
+		ConfigSecrets:         NewSQLiteConfigSecretsStore(db, cfg.EncryptionKey),
+		BuiltinTools:          NewSQLiteBuiltinToolStore(db),
+		Heartbeats:            NewSQLiteHeartbeatStore(db),
+		Tenants:               NewSQLiteTenantStore(db),
+		BuiltinToolTenantCfgs: NewSQLiteBuiltinToolTenantConfigStore(db),
+		SkillTenantCfgs:       NewSQLiteSkillTenantConfigStore(db),
+		SystemConfigs:         NewSQLiteSystemConfigStore(db),
+		Snapshots:             NewSQLiteSnapshotStore(db),
+		// Phase 2 Batch B+C stores (nil = gracefully skipped by gateway):
+		// Memory, Cron, Pairing, Skills, MCP, ChannelInstances,
+		// AgentLinks, Teams, PendingMessages, KnowledgeGraph,
+		// Contacts, Activity, SecureCLI, APIKeys, ConfigPermissions
 	}, nil
 }

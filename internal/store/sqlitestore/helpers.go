@@ -1,4 +1,4 @@
-//go:build sqlite
+//go:build sqlite || sqliteonly
 
 package sqlitestore
 
@@ -172,4 +172,31 @@ func requireTenantID(ctx context.Context) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("tenant_id required")
 	}
 	return tid, nil
+}
+
+// execMapUpdateWhereTenant builds and runs a dynamic UPDATE with ? placeholders,
+// adding both id and tenant_id to the WHERE clause for tenant-scoped updates.
+func execMapUpdateWhereTenant(ctx context.Context, db *sql.DB, table string, updates map[string]any, id, tenantID uuid.UUID) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	var setClauses []string
+	var args []any
+	for col, val := range updates {
+		if !validColumnName.MatchString(col) {
+			slog.Warn("security.invalid_column_name", "table", table, "column", col)
+			return fmt.Errorf("invalid column name: %q", col)
+		}
+		setClauses = append(setClauses, col+" = ?")
+		args = append(args, val)
+	}
+	if _, ok := updates["updated_at"]; !ok && tableHasUpdatedAt(table) {
+		setClauses = append(setClauses, "updated_at = ?")
+		args = append(args, time.Now().UTC())
+	}
+	args = append(args, id, tenantID)
+	q := fmt.Sprintf("UPDATE %s SET %s WHERE id = ? AND tenant_id = ?",
+		table, strings.Join(setClauses, ", "))
+	_, err := db.ExecContext(ctx, q, args...)
+	return err
 }
