@@ -37,7 +37,9 @@ ui/desktop/frontend/dist/*.js
 ui/desktop/frontend/dist/*.css
 ui/desktop/frontend/dist/assets/
 ui/desktop/frontend/.vite/
-ui/desktop/build/bin/
+ui/desktop/frontend/wailsjs/
+ui/desktop/frontend/package.json.md5
+ui/desktop/build/
 ui/desktop/desktop
 goclaw-lite
 
