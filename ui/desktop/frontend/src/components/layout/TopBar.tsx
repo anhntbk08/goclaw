@@ -45,6 +45,7 @@ export function TopBar() {
       className="wails-drag h-[38px] flex items-center px-4 bg-surface-secondary border-b border-border select-none shrink-0"
       style={{ paddingLeft: 72 }}
     >
+      <img src="/goclaw-icon.svg" alt="GoClaw" className="h-5 w-5 mr-1.5" />
       <span className="text-sm font-medium text-text-primary">GoClaw</span>
       <div className="flex-1" />
       <div

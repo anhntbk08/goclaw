@@ -7,13 +7,7 @@ interface StepProps {
 export function WelcomeStep({ onNext, onSkip }: StepProps) {
   return (
     <div className="text-center">
-      {/* Logo/Icon */}
-      <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-accent">
-          <path d="M16 4L28 10V22L16 28L4 22V10L16 4Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-          <path d="M16 4V16M28 10L16 16M4 10L16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      </div>
+      <img src="/goclaw-icon.svg" alt="GoClaw" className="mx-auto mb-6 h-20 w-20" />
 
       <h1 className="text-3xl font-bold text-text-primary mb-3">Welcome to GoClaw</h1>
       <p className="text-text-secondary mb-8 max-w-sm mx-auto">
