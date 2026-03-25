@@ -47,8 +47,11 @@ func NewSQLiteStores(cfg store.StoreConfig) (*store.Stores, error) {
 		Teams:  NewSQLiteTeamStore(db),
 		Skills: NewSQLiteSkillStore(db, cfg.SkillsStorageDir),
 		MCP:    NewSQLiteMCPServerStore(db, cfg.EncryptionKey),
+		Activity:         NewSQLiteActivityStore(db),
+		APIKeys:          NewSQLiteAPIKeyStore(db),
+		ConfigPermissions: NewSQLiteConfigPermissionStore(db),
+		Memory: NewSQLiteMemoryStore(db),
 		// Phase 2 Batch B+C stores (nil = gracefully skipped by gateway):
-		// Memory, AgentLinks, KnowledgeGraph,
-		// Activity, SecureCLI, APIKeys, ConfigPermissions
+		// AgentLinks, KnowledgeGraph, SecureCLI
 	}, nil
 }
