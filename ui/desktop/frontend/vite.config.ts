@@ -9,5 +9,20 @@ export default defineConfig({
   },
   server: {
     strictPort: true,
+    proxy: {
+      // Proxy API + WS calls to gateway in dev mode (avoids CORS)
+      '/v1': {
+        target: 'http://localhost:18790',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:18790',
+        ws: true,
+      },
+      '/health': {
+        target: 'http://localhost:18790',
+        changeOrigin: true,
+      },
+    },
   },
 })

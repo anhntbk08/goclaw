@@ -61,14 +61,18 @@ function App() {
       }
 
       // Initialize clients
-      const [url, token] = await Promise.all([
-        wails.getGatewayURL(),
-        wails.getGatewayToken(),
-      ])
+      const token = await wails.getGatewayToken()
 
-      const wsUrl = url.replace(/^http/, 'ws') + '/ws'
+      // In dev mode (Vite), use relative URLs so Vite proxy handles CORS.
+      // In production (Wails asset server), use the actual gateway URL.
+      const isDev = import.meta.env.DEV
+      const gatewayUrl = isDev ? '' : await wails.getGatewayURL()
+      const wsUrl = isDev
+        ? `ws://${window.location.host}/ws`
+        : (await wails.getGatewayURL()).replace(/^http/, 'ws') + '/ws'
+
       initWsClient(wsUrl, token)
-      initApiClient(url, token)
+      initApiClient(gatewayUrl, token)
 
       setReady(true)
     }
