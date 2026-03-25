@@ -27,11 +27,14 @@ const PROVIDERS: ProviderDef[] = [
   { type: 'minimax_native', label: 'MiniMax', apiBase: 'https://api.minimax.io/v1', needsKey: true, defaultModel: 'MiniMax-M1', group: 'cloud' },
   // Local
   { type: 'ollama', label: 'Ollama (Local)', apiBase: 'http://localhost:11434/v1', needsKey: false, defaultModel: 'llama3.2', group: 'local' },
+  { type: 'ollama_cloud', label: 'Ollama Cloud', apiBase: 'https://ollama.com/v1', needsKey: true, defaultModel: 'llama3.2', group: 'local' },
   { type: 'claude_cli', label: 'Claude CLI', apiBase: '', needsKey: false, defaultModel: 'sonnet', group: 'local' },
   // Regional
   { type: 'dashscope', label: 'DashScope (Qwen)', apiBase: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', needsKey: true, defaultModel: 'qwen3-max', group: 'regional' },
+  { type: 'bailian', label: 'Bailian Coding', apiBase: 'https://coding-intl.dashscope.aliyuncs.com/v1', needsKey: true, defaultModel: 'qwen3.5-plus', group: 'regional' },
   { type: 'yescale', label: 'YesScale', apiBase: 'https://api.yescale.one/v1', needsKey: true, defaultModel: 'claude-sonnet-4-5-20250929', group: 'regional' },
   { type: 'zai', label: 'Z.ai API', apiBase: 'https://api.z.ai/api/paas/v4', needsKey: true, defaultModel: 'claude-sonnet-4-5-20250929', group: 'regional' },
+  { type: 'zai_coding', label: 'Z.ai Coding Plan', apiBase: 'https://api.z.ai/api/coding/paas/v4', needsKey: true, defaultModel: 'claude-sonnet-4-5-20250929', group: 'regional' },
 ]
 
 const GROUP_LABELS: Record<string, string> = {
