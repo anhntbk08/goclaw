@@ -165,7 +165,7 @@ export function TraceDetailDialog({ traceId, onClose, getTrace, onNavigateTrace,
               <button
                 type="button"
                 onClick={(e) => onAbortRun(trace, e)}
-                className="flex items-center gap-1 rounded-md bg-destructive px-2 py-1 text-xs text-destructive-foreground transition-colors hover:bg-destructive/90"
+                className="flex cursor-pointer items-center gap-1 rounded-md bg-destructive px-2 py-1 text-xs text-destructive-foreground transition-colors hover:bg-destructive/90"
               >
                 <Square className="h-3.5 w-3.5" />
                 {t("detail.stopRun")}

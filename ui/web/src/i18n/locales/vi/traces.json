@@ -56,7 +56,8 @@
   },
   "toast": {
     "failedLoad": "Không thể tải dữ liệu theo dõi",
-    "abortSent": "Đã gửi tín hiệu dừng",
-    "abortFailed": "Không thể dừng chạy"
+    "abortSent": "Đã dừng chạy",
+    "abortFailed": "Không thể dừng chạy",
+    "abortNotFound": "Lệnh đã hoàn tất hoặc không tìm thấy"
   }
 }

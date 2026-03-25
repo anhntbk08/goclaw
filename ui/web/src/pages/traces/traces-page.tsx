@@ -40,29 +40,34 @@ export function TracesPage() {
   const { agents } = useAgents();
   const { instances: channels } = useChannelInstances();
 
-  const handleAbortRun = useCallback(
-    async (trace: TraceData, e: React.MouseEvent) => {
-      e.stopPropagation(); // Don't open trace detail
-      if (!ws.isConnected) return;
-      try {
-        await ws.call(Methods.CHAT_ABORT, {
-          sessionKey: trace.session_key,
-          runId: trace.run_id,
-        });
-        toast.success(t("toast.abortSent"));
-      } catch {
-        toast.error(t("toast.abortFailed"));
-      }
-    },
-    [ws, t],
-  );
-
   const { traces, total, loading, fetching, refresh, getTrace } = useTraces({
     agentId: agentFilter,
     channel: channelFilter,
     limit: pageSize,
     offset: (page - 1) * pageSize,
   });
+
+  const handleAbortRun = useCallback(
+    async (trace: TraceData, e: React.MouseEvent) => {
+      e.stopPropagation(); // Don't open trace detail
+      if (!ws.isConnected) return;
+      try {
+        const res = await ws.call(Methods.CHAT_ABORT, {
+          sessionKey: trace.session_key,
+          runId: trace.run_id,
+        }) as { aborted?: boolean };
+        if (res?.aborted) {
+          toast.success(t("toast.abortSent"));
+          refresh();
+        } else {
+          toast.info(t("toast.abortNotFound"));
+        }
+      } catch {
+        toast.error(t("toast.abortFailed"));
+      }
+    },
+    [ws, t, refresh],
+  );
   const spinning = useMinLoading(fetching);
   const showSkeleton = useDeferredLoading(loading && traces.length === 0);
 
