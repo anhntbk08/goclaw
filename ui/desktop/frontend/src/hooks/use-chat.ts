@@ -55,6 +55,8 @@ export function useChat() {
   } = useChatStore()
 
   const activeSessionKey = useSessionStore((s) => s.activeSessionKey)
+  const sessionKeyRef = useRef(activeSessionKey)
+  sessionKeyRef.current = activeSessionKey // always up-to-date, no stale closure
   const currentRunIdRef = useRef<string | null>(null)
 
   const chunkBatcher = useStreamBatcher(
@@ -75,7 +77,8 @@ export function useChat() {
         payload: Record<string, unknown>
       }
 
-      if (activeSessionKey && event.sessionKey !== activeSessionKey) return
+      // Use ref to avoid stale closure — activeSessionKey may change during auto-session-creation
+      if (sessionKeyRef.current && event.sessionKey !== sessionKeyRef.current) return
 
       const p = event.payload ?? {}
 
@@ -172,7 +175,6 @@ export function useChat() {
     return unsub
   }, [
     ws,
-    activeSessionKey,
     startRun,
     appendChunk,
     addToolCall,
@@ -182,7 +184,7 @@ export function useChat() {
     failRun,
     chunkBatcher,
     thinkingBatcher,
-  ])
+  ]) // sessionKeyRef used instead of activeSessionKey — no re-subscribe on session change
 
   const sendMessage = useCallback(
     async (text: string, agentId: string) => {

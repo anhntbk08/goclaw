@@ -88,16 +88,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           />
         )}
 
-        {/* Skip setup link */}
-        <div className="text-center">
-          <button
-            type="button"
-            className="text-sm text-text-muted underline underline-offset-4 hover:text-text-secondary transition-colors"
-            onClick={onComplete}
-          >
-            Skip setup and go to dashboard
-          </button>
-        </div>
       </div>
     </div>
   )

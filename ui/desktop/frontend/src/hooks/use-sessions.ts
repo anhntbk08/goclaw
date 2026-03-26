@@ -16,7 +16,7 @@ interface SessionInfoResponse {
 
 export function useSessions() {
   const ws = getWsClient()
-  const { sessions, activeSessionKey, setActiveSession, setSessions, addSession } = useSessionStore()
+  const { sessions, activeSessionKey, setActiveSession, setSessions, removeSession } = useSessionStore()
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId)
 
   useEffect(() => {
@@ -39,20 +39,23 @@ export function useSessions() {
     return () => { cancelled = true }
   }, [ws, selectedAgentId, setSessions])
 
+  // "New Chat" just clears active session + chat.
+  // Actual session is created by sendMessage on first message (auto-session-creation).
   const createSession = useCallback(() => {
-    if (!selectedAgentId) return
-    const key = `agent:${selectedAgentId}:ws:direct:system:${crypto.randomUUID().slice(0, 8)}`
-    const session = {
-      key,
-      agentId: selectedAgentId,
-      title: 'New Chat',
-      lastMessageAt: Date.now(),
-      messageCount: 0,
-    }
-    addSession(session)
-    setActiveSession(key)
+    setActiveSession(null)
     useChatStore.getState().clear()
-  }, [selectedAgentId, addSession, setActiveSession])
+  }, [setActiveSession])
 
-  return { sessions, activeSessionKey, setActiveSession, createSession }
+  const deleteSession = useCallback(async (key: string) => {
+    try {
+      await ws.call('sessions.delete', { key })
+    } catch { /* best effort */ }
+    removeSession(key)
+    if (activeSessionKey === key) {
+      setActiveSession(null)
+      useChatStore.getState().clear()
+    }
+  }, [ws, activeSessionKey, removeSession, setActiveSession])
+
+  return { sessions, activeSessionKey, setActiveSession, createSession, deleteSession }
 }
