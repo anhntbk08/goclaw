@@ -69,13 +69,11 @@ function App() {
       }
       console.info('[app] token length:', token?.length, 'prefix:', token?.slice(0, 8))
 
-      // In dev mode (Vite), use relative URLs so Vite proxy handles CORS.
-      // In production (Wails asset server), use the actual gateway URL.
-      const isDev = import.meta.env.DEV
-      const gatewayUrl = isDev ? '' : await wails.getGatewayURL()
-      const wsUrl = isDev
-        ? `ws://${window.location.host}/ws`
-        : (await wails.getGatewayURL()).replace(/^http/, 'ws') + '/ws'
+      // Always use the actual gateway URL from Wails binding.
+      // In dev mode, Wails serves from port 34115 which doesn't proxy API calls,
+      // so we must connect directly to the gateway.
+      const gatewayUrl = await wails.getGatewayURL()
+      const wsUrl = gatewayUrl.replace(/^http/, 'ws') + '/ws'
 
       console.info('[app] api url:', gatewayUrl || '(relative)', 'ws url:', wsUrl)
       initWsClient(wsUrl, token)

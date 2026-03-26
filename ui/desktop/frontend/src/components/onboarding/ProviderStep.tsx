@@ -79,23 +79,27 @@ export function ProviderStep({ onNext, onBack, onProviderSaved }: ProviderStepPr
       }
       if (provider.needsKey) payload.api_key = apiKey.trim()
 
-      // Try to create; if slug exists, find existing and update it
+      // Create or update provider
       let providerId: string
-      try {
+
+      // First try to find existing provider with same slug
+      const list = await api.get<{ providers?: { id: string; name: string }[] | null }>('/v1/providers')
+      const existing = (list.providers ?? []).find((p) => p.name === slug)
+
+      if (existing) {
+        // Update existing
+        await api.put(`/v1/providers/${existing.id}`, payload)
+        providerId = existing.id
+        console.info('[onboarding] updated existing provider:', providerId)
+      } else {
+        // Create new
         const created = await api.post<{ id: string }>('/v1/providers', payload)
         providerId = created.id
-      } catch (createErr) {
-        // Provider slug may already exist — find it and update
-        const list = await api.get<{ providers: { id: string; name: string }[] }>('/v1/providers')
-        const existing = list.providers?.find((p) => p.name === slug)
-        if (existing) {
-          await api.put(`/v1/providers/${existing.id}`, payload)
-          providerId = existing.id
-        } else {
-          throw createErr
-        }
+        console.info('[onboarding] created provider:', providerId)
       }
 
+      // Verify connection
+      console.info('[onboarding] verifying:', `/v1/providers/${providerId}/verify`, { model: provider.defaultModel })
       const result = await api.post<{ valid: boolean; error?: string }>(
         `/v1/providers/${providerId}/verify`,
         { model: provider.defaultModel }
