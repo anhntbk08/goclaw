@@ -61,7 +61,13 @@ function App() {
       }
 
       // Initialize clients
-      const token = await wails.getGatewayToken()
+      let token = ''
+      try {
+        token = await wails.getGatewayToken()
+      } catch (e) {
+        console.warn('[app] failed to get token from Wails binding:', e)
+      }
+      console.info('[app] token length:', token?.length, 'prefix:', token?.slice(0, 8))
 
       // In dev mode (Vite), use relative URLs so Vite proxy handles CORS.
       // In production (Wails asset server), use the actual gateway URL.
@@ -71,6 +77,7 @@ function App() {
         ? `ws://${window.location.host}/ws`
         : (await wails.getGatewayURL()).replace(/^http/, 'ws') + '/ws'
 
+      console.info('[app] api url:', gatewayUrl || '(relative)', 'ws url:', wsUrl)
       initWsClient(wsUrl, token)
       initApiClient(gatewayUrl, token)
 

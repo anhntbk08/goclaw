@@ -49,6 +49,7 @@ func (a *App) startup(ctx context.Context) {
 	os.Setenv("GOCLAW_ENCRYPTION_KEY", encKey)
 	os.Setenv("GOCLAW_GATEWAY_TOKEN", gwToken)
 	os.Setenv("GOCLAW_STORAGE_BACKEND", "sqlite")
+	slog.Info("desktop secrets configured", "token_len", len(gwToken), "token_prefix", gwToken[:min(8, len(gwToken))])
 
 	// Ensure data directory exists.
 	dataDir := os.Getenv("GOCLAW_DATA_DIR")
