@@ -2,10 +2,9 @@ import { useState, useCallback } from 'react'
 import { PersonalitySection } from './PersonalitySection'
 import { ModelBudgetSection } from './ModelBudgetSection'
 import { EvolutionSection } from './EvolutionSection'
-import { MemorySection } from './MemorySection'
 import { AgentFilesTab } from './AgentFilesTab'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
-import type { AgentData, MemoryConfig } from '../../../types/agent'
+import type { AgentData } from '../../../types/agent'
 
 type DetailTab = 'overview' | 'files'
 
@@ -30,7 +29,6 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
   const [contextWindow, setContextWindow] = useState(agent.context_window ?? 200000)
   const [maxToolIterations, setMaxToolIterations] = useState(agent.max_tool_iterations ?? 25)
   const [selfEvolve, setSelfEvolve] = useState(!!(agent.other_config?.self_evolve))
-  const [memoryConfig, setMemoryConfig] = useState<MemoryConfig | null>(agent.memory_config ?? null)
   const [saveBlocked, setSaveBlocked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -54,7 +52,6 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
         max_tool_iterations: maxToolIterations,
         is_default: isDefault,
         status,
-        memory_config: memoryConfig,
         other_config: otherConfig,
       })
       onClose()
@@ -63,7 +60,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
     } finally {
       setSaving(false)
     }
-  }, [agent, emoji, displayName, description, selfEvolve, provider, model, contextWindow, maxToolIterations, isDefault, status, memoryConfig, onSave, onClose])
+  }, [agent, emoji, displayName, description, selfEvolve, provider, model, contextWindow, maxToolIterations, isDefault, status, onSave, onClose])
 
   const handleConfirmResummon = async () => {
     setConfirmResummon(false)
@@ -145,8 +142,6 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
               onContextWindowChange={setContextWindow} onMaxToolIterationsChange={setMaxToolIterations}
               onSaveBlockedChange={setSaveBlocked}
             />
-            <hr className="border-border" />
-            <MemorySection config={memoryConfig} onChange={setMemoryConfig} />
             {isPredefined && (
               <>
                 <hr className="border-border" />
