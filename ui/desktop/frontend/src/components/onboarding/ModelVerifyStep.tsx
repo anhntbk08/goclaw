@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getApiClient } from '../../lib/api'
+import { Combobox } from '../common/Combobox'
 import type { StepProps } from './WelcomeStep'
 
 interface ModelVerifyStepProps extends StepProps {
@@ -65,33 +66,17 @@ export function ModelVerifyStep({ onNext, onBack, providerId, onModelSelected }:
       <h2 className="text-2xl font-bold text-text-primary mb-2">Select & Verify Model</h2>
       <p className="text-text-secondary mb-5">Choose a model and test the connection.</p>
 
-      {/* Model selection */}
+      {/* Model selection — searchable combobox with API-loaded options */}
       <div className="mb-5">
         <label className="block text-sm font-medium text-text-secondary mb-1.5">Model</label>
-        {loading ? (
-          <div className="flex items-center gap-2 py-2 text-sm text-text-muted">
-            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Loading models...
-          </div>
-        ) : models.length > 0 ? (
-          <select
-            value={model}
-            onChange={(e) => { setModel(e.target.value); setVerified(false); setError('') }}
-            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-          >
-            {models.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type="text"
-            value={model}
-            onChange={(e) => { setModel(e.target.value); setVerified(false); setError('') }}
-            placeholder="e.g. claude-sonnet-4-5, gpt-4o, qwen3-max"
-            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        )}
+        <Combobox
+          value={model}
+          onChange={(v) => { setModel(v); setVerified(false); setError('') }}
+          options={models.map((m) => ({ value: m, label: m }))}
+          placeholder="Search or type a model name..."
+          loading={loading}
+          allowCustom
+        />
       </div>
 
       {/* Status */}
