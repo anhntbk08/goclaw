@@ -90,7 +90,7 @@ export class WsClient {
         token: this.token,
         user_id: 'system',
         sender_id: 'desktop',
-        locale: navigator.language.split('-')[0] || 'en',
+        locale: localStorage.getItem('goclaw:language') || navigator.language.split('-')[0] || 'en',
         protocol_version: 3,
       },
     })

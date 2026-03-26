@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMcpServers, MAX_MCP_LITE } from '../../../hooks/use-mcp-servers'
 import { useAgentCrud } from '../../../hooks/use-agent-crud'
 import { McpFormDialog } from './McpFormDialog'
@@ -9,6 +10,7 @@ import { RefreshButton } from '../../common/RefreshButton'
 import type { MCPServerData } from '../../../types/mcp'
 
 export function McpServerList() {
+  const { t } = useTranslation(['mcp', 'common'])
   const {
     servers, loading, atLimit,
     fetchServers, createServer, updateServer, deleteServer,
@@ -38,8 +40,8 @@ export function McpServerList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">MCP Servers</h2>
-          <p className="text-xs text-text-muted mt-0.5">Manage MCP server connections (max {MAX_MCP_LITE})</p>
+          <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
+          <p className="text-xs text-text-muted mt-0.5">{t('description')} (max {MAX_MCP_LITE})</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -50,7 +52,7 @@ export function McpServerList() {
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14" /><path d="M12 5v14" />
             </svg>
-            Add Server
+            {t('addServer')}
           </button>
           <RefreshButton onRefresh={fetchServers} />
         </div>
@@ -58,7 +60,7 @@ export function McpServerList() {
 
       {atLimit && (
         <p className="text-[11px] text-amber-600 dark:text-amber-400">
-          Edition limit reached ({MAX_MCP_LITE} servers). Remove a server to add a new one.
+          {t('noMatchTitle')} ({MAX_MCP_LITE}). {t('noMatchDescription')}
         </p>
       )}
 
@@ -76,8 +78,8 @@ export function McpServerList() {
             <path d="M12 22v-5" /><path d="M9 8V2" /><path d="M15 8V2" />
             <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
           </svg>
-          <p className="text-sm text-text-muted">No MCP servers configured</p>
-          <p className="text-xs text-text-muted/70">Click "Add Server" to connect an MCP server</p>
+          <p className="text-sm text-text-muted">{t('emptyTitle')}</p>
+          <p className="text-xs text-text-muted/70">{t('emptyDescription')}</p>
         </div>
       ) : (
         /* Table */
@@ -85,12 +87,12 @@ export function McpServerList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-tertiary/40">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">Name</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">Transport</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-text-muted">Tools</th>
-                <th className="px-4 py-2.5 text-center text-xs font-medium text-text-muted">Agents</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">Enabled</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-text-muted">Actions</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">{t('columns.name')}</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">{t('columns.transport')}</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-text-muted">{t('columns.tools')}</th>
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-text-muted">{t('columns.agents')}</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-text-muted">{t('columns.enabled')}</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-text-muted">{t('columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +128,7 @@ export function McpServerList() {
                     <button
                       onClick={() => setToolsServer(s)}
                       className="p-1 text-text-muted hover:text-text-primary transition-colors"
-                      title="View tools"
+                      title={t('viewTools')}
                     >
                       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
@@ -138,7 +140,7 @@ export function McpServerList() {
                     <button
                       onClick={() => setGrantsServer(s)}
                       className="inline-flex items-center gap-1 text-sm text-text-primary hover:text-accent transition-colors"
-                      title="Manage agent grants"
+                      title={t('manageGrants')}
                     >
                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -155,7 +157,7 @@ export function McpServerList() {
                         ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/25 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20'
                         : 'bg-surface-tertiary text-text-secondary'
                     }`}>
-                      {s.enabled ? 'enabled' : 'disabled'}
+                      {s.enabled ? t('common:enabled') : t('common:disabled')}
                     </span>
                   </td>
                   {/* Actions */}

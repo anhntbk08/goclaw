@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Combobox } from '../../common/Combobox'
 import { Switch } from '../../common/Switch'
 import { PROVIDER_TYPES, slugify } from '../../../constants/providers'
@@ -14,6 +15,7 @@ interface ProviderFormDialogProps {
 
 export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: ProviderFormDialogProps) {
   const isEditing = !!provider
+  const { t } = useTranslation(['providers', 'common'])
 
   const [providerType, setProviderType] = useState(provider?.provider_type ?? '')
   const [displayName, setDisplayName] = useState(provider?.display_name ?? '')
@@ -78,24 +80,24 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-surface-secondary border border-border rounded-xl shadow-xl max-w-md w-full mx-4 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-text-primary">
-          {isEditing ? 'Edit Provider' : 'Add Provider'}
+          {isEditing ? t('providers:form.editTitle') : t('providers:form.createTitle')}
         </h3>
 
         {/* Provider type */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Provider Type</label>
+          <label className="text-xs font-medium text-text-secondary">{t('providers:form.providerType').replace(' *', '')}</label>
           <Combobox
             value={providerType}
             onChange={setProviderType}
             options={typeOptions}
-            placeholder="Select provider..."
+            placeholder={t('common:selectProvider')}
             disabled={isEditing}
           />
         </div>
 
         {/* Display name */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Display Name</label>
+          <label className="text-xs font-medium text-text-secondary">{t('providers:form.displayName')}</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -106,7 +108,7 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
 
         {/* API Base */}
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">API Base URL</label>
+          <label className="text-xs font-medium text-text-secondary">{t('providers:form.apiBase')}</label>
           <input
             value={apiBase}
             onChange={(e) => setApiBase(e.target.value)}
@@ -118,7 +120,7 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
         {/* API Key */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-text-secondary">
-            API Key {isEditing && <span className="text-text-muted font-normal">(leave blank to keep current)</span>}
+            {t('providers:form.apiKey')} {isEditing && <span className="text-text-muted font-normal">({t('providers:form.apiKeyEditPlaceholder').toLowerCase()})</span>}
           </label>
           <input
             type="password"
@@ -132,7 +134,7 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
         {/* Enabled toggle */}
         <div className="flex items-center gap-2">
           <Switch checked={enabled} onCheckedChange={setEnabled} />
-          <span className="text-xs text-text-secondary">Enabled</span>
+          <span className="text-xs text-text-secondary">{t('providers:form.enabled')}</span>
         </div>
 
         {error && <p className="text-xs text-error">{error}</p>}
@@ -142,14 +144,14 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
             onClick={() => onOpenChange(false)}
             className="px-3 py-1.5 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors"
           >
-            Cancel
+            {t('providers:form.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || !providerType}
             className="px-4 py-1.5 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
           >
-            {loading ? '...' : isEditing ? 'Save' : 'Create'}
+            {loading ? '...' : isEditing ? t('providers:form.save') : t('providers:form.create')}
           </button>
         </div>
       </div>

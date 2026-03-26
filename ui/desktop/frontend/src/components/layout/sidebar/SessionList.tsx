@@ -25,6 +25,7 @@ function groupByDate(sessions: Array<{ key: string; title: string; lastMessageAt
 
 export function SessionList() {
   const { sessions, activeSessionKey, setActiveSession, deleteSession } = useSessions()
+  const activeView = useUiStore((s) => s.activeView)
   const closeSettings = useUiStore((s) => s.closeSettings)
   const [confirmKey, setConfirmKey] = useState<string | null>(null)
 
@@ -67,7 +68,7 @@ export function SessionList() {
                   ].join(' ')}
                 >
                   <button
-                    onClick={() => { setActiveSession(session.key); closeSettings() }}
+                    onClick={() => { setActiveSession(session.key); if (activeView === 'settings') closeSettings() }}
                     className={[
                       'flex-1 text-left px-2 py-1.5 text-xs truncate min-w-0',
                       activeSessionKey === session.key

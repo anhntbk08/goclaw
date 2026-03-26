@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getWsClient } from '../../lib/ws'
 
-const SUMMONING_FILES = [
-  { name: 'SOUL.md', required: true, label: 'Core personality' },
-  { name: 'IDENTITY.md', required: true, label: 'Identity & knowledge' },
-  { name: 'USER_PREDEFINED.md', required: false, label: 'User context' },
+const SUMMONING_FILE_KEYS = [
+  { name: 'SOUL.md', required: true, labelKey: 'summoning.fileLabelSOUL' },
+  { name: 'IDENTITY.md', required: true, labelKey: 'summoning.fileLabelIDENTITY' },
+  { name: 'USER_PREDEFINED.md', required: false, labelKey: 'summoning.fileLabelUSER_PREDEFINED' },
 ]
 
 interface SummoningModalProps {
@@ -15,6 +16,7 @@ interface SummoningModalProps {
 }
 
 export function SummoningModal({ agentId, agentName, onContinue }: SummoningModalProps) {
+  const { t } = useTranslation(['desktop', 'common'])
   const [generatedFiles, setGeneratedFiles] = useState<string[]>([])
   const [status, setStatus] = useState<'summoning' | 'completed' | 'failed'>('summoning')
   const [errorMsg, setErrorMsg] = useState('')
@@ -50,13 +52,13 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
         )
       }
       if (data.type === 'completed') {
-        const required = SUMMONING_FILES.filter((f) => f.required).map((f) => f.name)
+        const required = SUMMONING_FILE_KEYS.filter((f) => f.required).map((f) => f.name)
         setGeneratedFiles((prev) => [...new Set([...prev, ...required])])
         setStatus('completed')
       }
       if (data.type === 'failed') {
         setStatus('failed')
-        setErrorMsg(data.error || 'Summoning failed')
+        setErrorMsg(data.error || t('desktop:summoning.failed'))
       }
     },
     [agentId],
@@ -92,7 +94,11 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
         {/* Header */}
         <div className="pt-6 pb-2 text-center">
           <h2 className="text-lg font-semibold text-text-primary">
-            {status === 'completed' ? 'Agent Ready!' : status === 'failed' ? 'Summoning Failed' : 'Summoning Agent'}
+            {status === 'completed'
+              ? t('desktop:summoning.completedTitle')
+              : status === 'failed'
+                ? t('desktop:summoning.failedTitle')
+                : t('desktop:summoning.title')}
           </h2>
         </div>
 
@@ -146,7 +152,7 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
               </span>
             ) : status === 'failed' ? (
               <span className="font-medium text-red-600 dark:text-red-400">
-                {errorMsg || 'Summoning failed'}
+                {errorMsg || t('desktop:summoning.failed')}
               </span>
             ) : (
               <>Weaving soul for <span className="font-semibold text-text-primary">{agentName}</span>...</>
@@ -156,7 +162,7 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
           {/* File progress */}
           <div className="w-full space-y-2">
             <AnimatePresence>
-              {SUMMONING_FILES.map((file, i) => {
+              {SUMMONING_FILE_KEYS.map((file, i) => {
                 const done = generatedFiles.includes(file.name)
                 return (
                   <motion.div
@@ -181,7 +187,7 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
                       <span className={`text-sm ${done ? 'text-text-primary font-medium' : 'text-text-secondary'}`}>
                         {file.name}
                       </span>
-                      <span className="ml-2 text-xs text-text-muted">{file.label}</span>
+                      <span className="ml-2 text-xs text-text-muted">{t(`desktop:${file.labelKey}`)}</span>
                     </div>
                     {done && (
                       <motion.span
@@ -219,7 +225,7 @@ export function SummoningModal({ agentId, agentName, onContinue }: SummoningModa
               disabled={retrying}
               className="px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface-tertiary transition-colors disabled:opacity-50"
             >
-              {retrying ? 'Retrying...' : 'Retry'}
+              {retrying ? t('desktop:summoning.retrying') : t('common:retry')}
             </button>
           )}
         </div>

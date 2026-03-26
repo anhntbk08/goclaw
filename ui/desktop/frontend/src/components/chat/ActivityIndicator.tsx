@@ -1,30 +1,55 @@
+import { useTranslation } from 'react-i18next'
+
 interface ActivityIndicatorProps {
   phase: string
   tool?: string
   iteration?: number
 }
 
-const PHASE_CONFIG: Record<string, { label: string; color: string }> = {
-  thinking: { label: 'Thinking', color: 'text-amber-500' },
-  tool_exec: { label: 'Executing tool', color: 'text-blue-500' },
-  compacting: { label: 'Compacting context', color: 'text-warning' },
-  streaming: { label: 'Streaming', color: 'text-text-secondary' },
-  retrying: { label: 'Retrying', color: 'text-amber-500' },
-  leader_processing: { label: 'Processing', color: 'text-emerald-500' },
+const PHASE_COLOR: Record<string, string> = {
+  thinking: 'text-amber-500',
+  tool_exec: 'text-blue-500',
+  compacting: 'text-warning',
+  streaming: 'text-text-secondary',
+  retrying: 'text-amber-500',
+  leader_processing: 'text-emerald-500',
 }
 
 export function ActivityIndicator({ phase, tool, iteration }: ActivityIndicatorProps) {
-  const config = PHASE_CONFIG[phase] ?? { label: phase, color: 'text-text-muted' }
-  let label = config.label
-  if (phase === 'tool_exec' && tool) label = `Running ${tool}`
-  if (phase === 'retrying' && iteration) label = `Retrying (attempt ${iteration})`
+  const { t } = useTranslation('desktop')
+
+  const color = PHASE_COLOR[phase] ?? 'text-text-muted'
+
+  let label: string
+  switch (phase) {
+    case 'thinking':
+      label = t('activity.thinking')
+      break
+    case 'tool_exec':
+      label = tool ? t('activity.runningTool', { tool }) : t('activity.executingTool')
+      break
+    case 'compacting':
+      label = t('activity.compacting')
+      break
+    case 'streaming':
+      label = t('activity.streaming')
+      break
+    case 'retrying':
+      label = iteration ? t('activity.retryingAttempt', { n: iteration }) : t('activity.retrying')
+      break
+    case 'leader_processing':
+      label = t('activity.processing')
+      break
+    default:
+      label = phase
+  }
 
   return (
     <div className="flex items-center gap-2 py-2 text-xs text-text-muted">
-      <PhaseIcon phase={phase} color={config.color} />
-      <span className={config.color}>{label}</span>
+      <PhaseIcon phase={phase} color={color} />
+      <span className={color}>{label}</span>
       {phase !== 'retrying' && iteration && iteration > 1 && (
-        <span className="text-text-muted">· step {iteration}</span>
+        <span className="text-text-muted">· {t('activity.step', { n: iteration })}</span>
       )}
     </div>
   )
@@ -46,7 +71,7 @@ function PhaseIcon({ phase, color }: { phase: string; color: string }) {
     case 'tool_exec':
       // Wrench icon
       return (
-        <svg className={`${cls} animate-spin`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <svg className={`${cls} animate-wobble`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
         </svg>
       )

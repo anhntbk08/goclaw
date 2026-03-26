@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getApiClient } from '../lib/api'
+import { toast } from '../stores/toast-store'
 import type { BuiltinToolData } from '../types/builtin-tool'
 
 export function useBuiltinTools() {
@@ -28,6 +29,7 @@ export function useBuiltinTools() {
       console.error('Failed to toggle tool:', err)
       // Revert on error
       setTools((prev) => prev.map((t) => t.name === name ? { ...t, enabled: !enabled } : t))
+      toast.error('Failed to toggle tool', (err as Error).message)
     }
   }, [])
 

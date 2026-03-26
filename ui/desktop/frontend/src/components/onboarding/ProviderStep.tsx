@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient } from '../../lib/api'
 import { PROVIDER_TYPES, slugify } from '../../constants/providers'
 import { Combobox } from '../common/Combobox'
@@ -10,6 +11,7 @@ interface ProviderStepProps {
 }
 
 export function ProviderStep({ existingProvider, onComplete }: ProviderStepProps) {
+  const { t } = useTranslation(['desktop', 'common'])
   const isEditing = !!existingProvider
 
   const [providerType, setProviderType] = useState(existingProvider?.provider_type ?? 'openrouter')
@@ -151,7 +153,7 @@ export function ProviderStep({ existingProvider, onComplete }: ProviderStepProps
           className="px-6 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {loading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-          {isEditing ? 'Update' : 'Create Provider'}
+          {isEditing ? t('common:update') : t('desktop:onboarding.createProvider')}
         </button>
       </div>
     </div>

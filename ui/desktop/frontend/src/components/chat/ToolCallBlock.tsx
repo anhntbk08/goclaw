@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ToolCall } from '../../stores/chat-store'
 
 // Inline SVG icons (no lucide-react dependency)
@@ -43,15 +44,16 @@ function ToolIcon({ state, isSkill }: { state: ToolCall['state']; isSkill: boole
     if (state === 'error') return <AlertIcon className={`${cls} text-error`} />
     return <ZapIcon className={`${cls} text-amber-500`} />
   }
-  if (state === 'calling') return <span className={`${cls} inline-block border-2 border-blue-500 border-t-transparent rounded-full animate-spin`} />
+  if (state === 'calling') return <WrenchIcon className={`${cls} animate-wobble text-blue-500`} />
   if (state === 'error') return <AlertIcon className={`${cls} text-error`} />
   return <WrenchIcon className={`${cls} text-blue-500`} />
 }
 
 function PhaseLabel({ state, isSkill }: { state: ToolCall['state']; isSkill: boolean }) {
+  const { t } = useTranslation('common')
   const label = isSkill
-    ? { calling: 'Activating...', completed: 'Activated', error: 'Failed' }[state]
-    : { calling: 'Running...', completed: 'Done', error: 'Failed' }[state]
+    ? { calling: t('skillActivating'), completed: t('skillActivated'), error: t('toolFailed') }[state]
+    : { calling: t('toolRunning'), completed: t('toolDone'), error: t('toolFailed') }[state]
   const color = state === 'error' ? 'text-error' : state === 'completed' ? 'text-text-secondary' : 'text-blue-500'
   return <span className={`text-[11px] ${color}`}>{label}</span>
 }
@@ -63,6 +65,7 @@ interface ToolCallBlockProps {
 }
 
 export function ToolCallBlock({ toolCall, compact }: ToolCallBlockProps) {
+  const { t } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
   const skill = isSkillTool(toolCall.toolName)
   const displayName = skill
@@ -99,7 +102,7 @@ export function ToolCallBlock({ toolCall, compact }: ToolCallBlockProps) {
           )}
           {Object.keys(toolCall.arguments).length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold uppercase text-text-muted mb-0.5">Arguments</div>
+              <div className="text-[10px] font-semibold uppercase text-text-muted mb-0.5">{t('toolArguments')}</div>
               <pre className="whitespace-pre-wrap text-[11px] font-mono text-text-secondary bg-surface-primary rounded p-1.5 max-h-40 overflow-y-auto">
                 {JSON.stringify(toolCall.arguments, null, 2)}
               </pre>
@@ -107,7 +110,7 @@ export function ToolCallBlock({ toolCall, compact }: ToolCallBlockProps) {
           )}
           {toolCall.result && (
             <div>
-              <div className="text-[10px] font-semibold uppercase text-text-muted mb-0.5">Result</div>
+              <div className="text-[10px] font-semibold uppercase text-text-muted mb-0.5">{t('toolResult')}</div>
               <pre className="whitespace-pre-wrap text-[11px] font-mono text-text-secondary bg-surface-primary rounded p-1.5 max-h-40 overflow-y-auto">
                 {toolCall.result}
               </pre>

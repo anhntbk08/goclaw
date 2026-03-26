@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useProviders } from '../../../hooks/use-providers'
 import { ProviderRow } from './ProviderRow'
 import { ProviderFormDialog } from './ProviderFormDialog'
@@ -6,6 +7,7 @@ import { ConfirmDialog } from '../../common/ConfirmDialog'
 import type { ProviderData, ProviderInput } from '../../../types/provider'
 
 export function ProviderList() {
+  const { t } = useTranslation(['providers', 'common'])
   const { providers, loading, createProvider, updateProvider, deleteProvider } = useProviders()
   const [formOpen, setFormOpen] = useState(false)
   const [editingProvider, setEditingProvider] = useState<ProviderData | null>(null)
@@ -37,24 +39,24 @@ export function ProviderList() {
   }
 
   if (loading) {
-    return <p className="text-xs text-text-muted py-4">Loading providers...</p>
+    return <p className="text-xs text-text-muted py-4">{t('common:loading')}</p>
   }
 
   return (
     <>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Providers</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t('providers:title')}</h3>
           <button
             onClick={handleCreate}
             className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors"
           >
-            + Add Provider
+            + {t('providers:addProvider')}
           </button>
         </div>
 
         {providers.length === 0 ? (
-          <p className="text-xs text-text-muted py-4 text-center">No providers configured.</p>
+          <p className="text-xs text-text-muted py-4 text-center">{t('providers:emptyTitle')}</p>
         ) : (
           <div className="space-y-1.5">
             {providers.map((p) => (

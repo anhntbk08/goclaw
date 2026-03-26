@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getApiClient } from '../lib/api'
+import { toast } from '../stores/toast-store'
 import type { MCPServerData, MCPServerInput, MCPAgentGrant, MCPToolInfo, MCPTestResult } from '../types/mcp'
 
 export const MAX_MCP_LITE = 5
@@ -22,20 +23,38 @@ export function useMcpServers() {
   useEffect(() => { fetchServers() }, [fetchServers])
 
   const createServer = useCallback(async (input: MCPServerInput) => {
-    const res = await getApiClient().post<MCPServerData>('/v1/mcp/servers', input)
-    await fetchServers()
-    return res
+    try {
+      const res = await getApiClient().post<MCPServerData>('/v1/mcp/servers', input)
+      await fetchServers()
+      toast.success('Server created')
+      return res
+    } catch (err) {
+      toast.error('Failed to create server', (err as Error).message)
+      throw err
+    }
   }, [fetchServers])
 
   const updateServer = useCallback(async (id: string, input: Partial<MCPServerInput>) => {
-    const res = await getApiClient().put<MCPServerData>(`/v1/mcp/servers/${id}`, input)
-    await fetchServers()
-    return res
+    try {
+      const res = await getApiClient().put<MCPServerData>(`/v1/mcp/servers/${id}`, input)
+      await fetchServers()
+      toast.success('Server updated')
+      return res
+    } catch (err) {
+      toast.error('Failed to update server', (err as Error).message)
+      throw err
+    }
   }, [fetchServers])
 
   const deleteServer = useCallback(async (id: string) => {
-    await getApiClient().delete(`/v1/mcp/servers/${id}`)
-    setServers((prev) => prev.filter((s) => s.id !== id))
+    try {
+      await getApiClient().delete(`/v1/mcp/servers/${id}`)
+      setServers((prev) => prev.filter((s) => s.id !== id))
+      toast.success('Server deleted')
+    } catch (err) {
+      toast.error('Failed to delete server', (err as Error).message)
+      throw err
+    }
   }, [])
 
   const testConnection = useCallback(async (data: {

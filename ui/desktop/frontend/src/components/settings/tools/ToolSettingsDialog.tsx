@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Switch } from '../../common/Switch'
 import { Combobox } from '../../common/Combobox'
 import { getApiClient } from '../../../lib/api'
@@ -17,6 +18,7 @@ interface ToolSettingsDialogProps {
 }
 
 export function ToolSettingsDialog({ open, onOpenChange, tool, onSave }: ToolSettingsDialogProps) {
+  const { t } = useTranslation(['tools', 'common'])
   if (!open) return null
 
   return (
@@ -26,7 +28,7 @@ export function ToolSettingsDialog({ open, onOpenChange, tool, onSave }: ToolSet
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h3 className="text-sm font-semibold text-text-primary">Settings — {tool.display_name}</h3>
+            <h3 className="text-sm font-semibold text-text-primary">{t('builtin.settingsDialog.title', { name: tool.display_name })}</h3>
             <p className="font-mono text-[11px] text-text-muted mt-0.5">{tool.name}</p>
           </div>
           <button onClick={() => onOpenChange(false)} className="p-1 text-text-muted hover:text-text-primary transition-colors">
@@ -65,6 +67,7 @@ const EXTRACTOR_DISPLAY: Record<string, string> = {
 }
 
 function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; onSave: ToolSettingsDialogProps['onSave']; onClose: () => void }) {
+  const { t } = useTranslation(['tools', 'common'])
   const [extractors, setExtractors] = useState<ExtractorEntry[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -111,7 +114,7 @@ function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; 
             {ext.name === 'defuddle' && (
               <>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Base URL</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.extractorChain.baseUrl')}</label>
                   <input
                     value={ext.base_url ?? ''}
                     onChange={(e) => updateExtractor(i, { base_url: e.target.value })}
@@ -120,7 +123,7 @@ function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Max Retries</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.mediaChain.retries')}</label>
                   <input
                     type="number"
                     min={0}
@@ -136,7 +139,7 @@ function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; 
             {/* Timeout (show for defuddle or if already set) */}
             {(ext.name === 'defuddle' || (ext.timeout && ext.timeout > 0)) && (
               <div className="space-y-1">
-                <label className="text-xs font-medium text-text-secondary">Timeout (seconds)</label>
+                <label className="text-xs font-medium text-text-secondary">{t('builtin.extractorChain.timeout')}</label>
                 <input
                   type="number"
                   min={0}
@@ -145,14 +148,14 @@ function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; 
                   onChange={(e) => updateExtractor(i, { timeout: Math.max(0, Number(e.target.value)) })}
                   className="w-20 bg-surface-tertiary border border-border rounded-lg px-3 py-1.5 text-base md:text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-accent"
                 />
-                <p className="text-[10px] text-text-muted">0 = default</p>
+                <p className="text-[10px] text-text-muted">0 = {t('common:default')}</p>
               </div>
             )}
           </div>
         ))}
 
         {extractors.length === 0 && (
-          <p className="text-xs text-text-muted text-center py-4">No extractors configured</p>
+          <p className="text-xs text-text-muted text-center py-4">{t('builtin.mediaChain.noProviders')}</p>
         )}
       </div>
 
@@ -160,10 +163,10 @@ function ExtractorChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; 
       {error && <div className="px-5"><p className="text-xs text-error">{error}</p></div>}
       <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
         <button type="button" onClick={onClose} className="border border-border rounded-lg px-4 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors">
-          Cancel
+          {t('builtin.settingsDialog.cancel')}
         </button>
         <button type="button" onClick={handleSave} disabled={saving} className="bg-accent rounded-lg px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50 transition-colors">
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('builtin.settingsDialog.saving') : t('builtin.settingsDialog.save')}
         </button>
       </div>
     </>
@@ -182,6 +185,7 @@ interface ProviderEntry {
 }
 
 function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolData; onSave: ToolSettingsDialogProps['onSave']; onClose: () => void }) {
+  const { t } = useTranslation(['tools', 'common'])
   const [chain, setChain] = useState<ProviderEntry[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -255,7 +259,7 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-mono text-text-muted bg-surface-tertiary rounded px-1.5 py-0.5">#{i + 1}</span>
-                  <span className="text-sm font-medium text-text-primary">{entry.provider || 'New provider'}</span>
+                  <span className="text-sm font-medium text-text-primary">{entry.provider || t('builtin.mediaChain.newProvider')}</span>
                   {entry.model && <span className="text-xs text-text-muted">/ {entry.model}</span>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -271,7 +275,7 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
               {/* Provider + Model (Combobox) */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Provider</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.mediaChain.provider')}</label>
                   <Combobox
                     value={entry.provider}
                     onChange={(v) => {
@@ -279,17 +283,17 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
                       loadModels(v)
                     }}
                     options={providerOptions}
-                    placeholder="Select provider..."
+                    placeholder={t('builtin.mediaChain.selectProvider')}
                     allowCustom
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Model</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.mediaChain.model')}</label>
                   <Combobox
                     value={entry.model}
                     onChange={(v) => updateEntry(i, { model: v })}
                     options={modelOpts}
-                    placeholder="Select model..."
+                    placeholder={t('builtin.mediaChain.selectModel')}
                     loading={entry.provider !== '' && !modelsByProvider[entry.provider]}
                     allowCustom
                   />
@@ -299,7 +303,7 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
               {/* Timeout + Retries */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Timeout (sec)</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.mediaChain.timeout')}</label>
                   <input
                     type="number"
                     min={1}
@@ -310,7 +314,7 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-text-secondary">Max Retries</label>
+                  <label className="text-xs font-medium text-text-secondary">{t('builtin.mediaChain.retries')}</label>
                   <input
                     type="number"
                     min={0}
@@ -329,17 +333,17 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14" /><path d="M12 5v14" />
           </svg>
-          Add provider
+          {t('builtin.mediaChain.addProvider')}
         </button>
       </div>
 
       {error && <div className="px-5"><p className="text-xs text-error">{error}</p></div>}
       <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
         <button type="button" onClick={onClose} className="border border-border rounded-lg px-4 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors">
-          Cancel
+          {t('builtin.mediaChain.cancel')}
         </button>
         <button type="button" onClick={handleSave} disabled={saving} className="bg-accent rounded-lg px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50 transition-colors">
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('builtin.mediaChain.saving') : t('builtin.mediaChain.save')}
         </button>
       </div>
     </>
@@ -349,6 +353,7 @@ function MediaProviderChainForm({ tool, onSave, onClose }: { tool: BuiltinToolDa
 /* ─── Generic JSON Settings Form (fallback) ─── */
 
 function JsonSettingsForm({ tool, onSave, onClose }: { tool: BuiltinToolData; onSave: ToolSettingsDialogProps['onSave']; onClose: () => void }) {
+  const { t } = useTranslation(['tools', 'common'])
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -363,13 +368,13 @@ function JsonSettingsForm({ tool, onSave, onClose }: { tool: BuiltinToolData; on
     try {
       const parsed = JSON.parse(json)
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        setError('Settings must be a JSON object')
+        setError(t('builtin.jsonDialog.invalidJson'))
         return null
       }
       setError('')
       return parsed as Record<string, unknown>
     } catch {
-      setError('Invalid JSON')
+      setError(t('builtin.jsonDialog.invalidJson'))
       return null
     }
   }
@@ -387,7 +392,7 @@ function JsonSettingsForm({ tool, onSave, onClose }: { tool: BuiltinToolData; on
       await onSave(tool.name, parsed)
       onClose()
     } catch (err) {
-      setError((err as Error).message || 'Failed to save')
+      setError((err as Error).message || t('builtin.jsonDialog.invalidJson'))
     } finally {
       setSaving(false)
     }
@@ -405,17 +410,17 @@ function JsonSettingsForm({ tool, onSave, onClose }: { tool: BuiltinToolData; on
         <div className="flex items-center justify-between mt-1 min-h-[20px]">
           {error ? <span className="text-xs text-error">{error}</span> : <span />}
           <button type="button" onClick={handleFormat} className="text-[11px] text-accent hover:text-accent-hover transition-colors">
-            Format JSON
+            {t('builtin.jsonDialog.formatJson')}
           </button>
         </div>
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
         <button type="button" onClick={onClose} className="border border-border rounded-lg px-4 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors">
-          Cancel
+          {t('builtin.jsonDialog.cancel')}
         </button>
         <button type="button" onClick={handleSave} disabled={!!error || saving} className="bg-accent rounded-lg px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50 transition-colors">
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? t('builtin.jsonDialog.saving') : t('builtin.jsonDialog.save')}
         </button>
       </div>
     </>

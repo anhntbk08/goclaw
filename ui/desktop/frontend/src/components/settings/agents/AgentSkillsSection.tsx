@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient, isApiClientReady } from '../../../lib/api'
 import { Switch } from '../../common/Switch'
 
@@ -19,6 +20,7 @@ interface AgentSkillsSectionProps {
 }
 
 export function AgentSkillsSection({ agentId }: AgentSkillsSectionProps) {
+  const { t } = useTranslation('agents')
   const [skills, setSkills] = useState<SkillWithGrant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -58,10 +60,10 @@ export function AgentSkillsSection({ agentId }: AgentSkillsSectionProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">Skills</h3>
+        <h3 className="text-sm font-semibold text-text-primary">{t('detail.skills')}</h3>
         {!loading && skills.length > 0 && (
           <span className="text-[11px] text-text-muted">
-            Granted: {granted}/{skills.length}
+            {t('skills.skillsGranted', { granted, total: skills.length })}
           </span>
         )}
       </div>
@@ -75,7 +77,7 @@ export function AgentSkillsSection({ agentId }: AgentSkillsSectionProps) {
           ))}
         </div>
       ) : skills.length === 0 ? (
-        <p className="text-xs text-text-muted py-3 text-center">No skills available</p>
+        <p className="text-xs text-text-muted py-3 text-center">{t('skills.noSkillsAvailable')}</p>
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border">
           {skills.map((skill) => (
@@ -97,7 +99,7 @@ export function AgentSkillsSection({ agentId }: AgentSkillsSectionProps) {
                 )}
               </div>
               {skill.is_system ? (
-                <span className="text-[10px] text-text-muted shrink-0">always</span>
+                <span className="text-[10px] text-text-muted shrink-0">{t('skills.alwaysAvailable')}</span>
               ) : (
                 <Switch
                   checked={skill.granted}

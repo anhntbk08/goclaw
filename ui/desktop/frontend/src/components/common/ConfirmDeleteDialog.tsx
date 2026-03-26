@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ConfirmDeleteDialogProps {
   open: boolean
@@ -19,11 +20,14 @@ export function ConfirmDeleteDialog({
   title,
   description,
   confirmValue,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   loading,
 }: ConfirmDeleteDialogProps) {
+  const { t } = useTranslation('common')
+  const resolvedConfirmLabel = confirmLabel ?? t('delete')
+  const resolvedCancelLabel = cancelLabel ?? t('cancel')
   const [inputValue, setInputValue] = useState('')
 
   useEffect(() => {
@@ -46,7 +50,7 @@ export function ConfirmDeleteDialog({
         </div>
         <div>
           <p className="mb-2 text-xs text-text-muted">
-            Type <span className="font-semibold text-text-primary">{confirmValue}</span> to confirm
+            {t('typeToConfirmPrefix')} <span className="font-semibold text-text-primary">{confirmValue}</span> {t('typeToConfirmSuffix')}
           </p>
           <input
             value={inputValue}
@@ -62,14 +66,14 @@ export function ConfirmDeleteDialog({
             disabled={loading}
             className="px-3 py-1.5 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors disabled:opacity-50"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             onClick={onConfirm}
             disabled={!isMatch || loading}
             className="px-3 py-1.5 text-xs bg-error text-white rounded-lg transition-opacity disabled:opacity-50 hover:opacity-90"
           >
-            {loading ? '...' : confirmLabel}
+            {loading ? '...' : resolvedConfirmLabel}
           </button>
         </div>
       </div>

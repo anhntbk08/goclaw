@@ -1,12 +1,14 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useChat } from '../../hooks/use-chat'
 import { useAgents } from '../../hooks/use-agents'
 import { ChatTopBar } from './ChatTopBar'
 import { MessageBubble } from './MessageBubble'
 import { ActivityIndicator } from './ActivityIndicator'
-import { InputBar } from './InputBar'
+import { InputBar, type AttachedFile } from './InputBar'
 
 export function ChatCanvas() {
+  const { t } = useTranslation('common')
   const { messages, isRunning, activity, sendMessage } = useChat()
   const { selectedAgent } = useAgents()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -34,10 +36,10 @@ export function ChatCanvas() {
     userScrolledUp.current = !atBottom
   }, [])
 
-  const handleSend = useCallback((text: string) => {
+  const handleSend = useCallback((text: string, files?: AttachedFile[]) => {
     if (!selectedAgent) return
     userScrolledUp.current = false
-    sendMessage(text, selectedAgent.id)
+    sendMessage(text, selectedAgent.id, files)
   }, [selectedAgent, sendMessage])
 
   const hasMessages = messages.length > 0
@@ -58,7 +60,7 @@ export function ChatCanvas() {
             {!selectedAgent && (
               <div className="flex flex-col items-center justify-center py-20">
                 <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mb-3" />
-                <p className="text-sm text-text-muted">Loading agent...</p>
+                <p className="text-sm text-text-muted">{t('loading')}</p>
               </div>
             )}
             {selectedAgent && !hasMessages && <EmptyState agentName={selectedAgent.name} />}
@@ -84,7 +86,7 @@ export function ChatCanvas() {
           onSend={handleSend}
           disabled={!selectedAgent}
           isRunning={isRunning}
-          placeholder={selectedAgent ? `Message ${selectedAgent.name}...` : 'Select an agent first'}
+          placeholder={selectedAgent ? t('sendMessage') : t('selectAgent')}
         />
       </div>
     </div>
@@ -93,20 +95,22 @@ export function ChatCanvas() {
 
 /** Empty state with logo and suggested prompts */
 function EmptyState({ agentName }: { agentName?: string }) {
+  const { t } = useTranslation('desktop')
+  const suggestions = t('chat.suggestions', { returnObjects: true }) as string[]
   return (
     <div className="flex flex-col items-center justify-center text-center py-20">
       <img src="/goclaw-icon.svg" alt="GoClaw" className="h-14 w-14 mb-5 opacity-30" />
       <h2 className="text-lg font-medium text-text-primary mb-1">
-        {agentName ? `Chat with ${agentName}` : 'Start a conversation'}
+        {agentName
+          ? t('chat.emptyTitle', { name: agentName })
+          : t('chat.emptyTitleDefault')}
       </h2>
       <p className="text-sm text-text-muted max-w-sm mb-6">
-        {agentName
-          ? 'Ask a question, write something, or explore ideas.'
-          : 'Select an agent from the sidebar to begin.'}
+        {agentName ? t('chat.emptyDescAgent') : t('chat.emptyDescNoAgent')}
       </p>
       {agentName && (
         <div className="flex flex-wrap justify-center gap-2">
-          {['What can you help me with?', 'Summarize something for me', 'Help me brainstorm'].map((prompt) => (
+          {suggestions.map((prompt) => (
             <span
               key={prompt}
               className="text-xs text-text-secondary bg-surface-secondary border border-border rounded-full px-3 py-1.5 opacity-60"
@@ -117,7 +121,7 @@ function EmptyState({ agentName }: { agentName?: string }) {
         </div>
       )}
       <p className="text-[10px] text-text-muted mt-4">
-        Press <kbd className="px-1 py-0.5 bg-surface-tertiary rounded text-[10px] font-mono">⌘N</kbd> for new chat
+        Press <kbd className="px-1 py-0.5 bg-surface-tertiary rounded text-[10px] font-mono">⌘N</kbd> {t('sidebar.newChat').toLowerCase()}
       </p>
     </div>
   )

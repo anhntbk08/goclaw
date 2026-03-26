@@ -6,12 +6,16 @@ export type SettingsTab = 'appearance' | 'providers' | 'agents' | 'mcp' | 'skill
 
 interface UiState {
   theme: 'dark' | 'light'
+  locale: string
+  timezone: string
   sidebarOpen: boolean
   sidebarWidth: number
   onboarded: boolean
   activeView: AppView
   settingsTab: SettingsTab
   toggleTheme: () => void
+  setLocale: (locale: string) => void
+  setTimezone: (tz: string) => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
   completeOnboarding: () => void
@@ -26,6 +30,8 @@ export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
       theme: 'dark',
+      locale: 'en',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       sidebarOpen: true,
       sidebarWidth: 260,
       onboarded: false,
@@ -33,6 +39,10 @@ export const useUiStore = create<UiState>()(
       settingsTab: 'appearance',
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      setLocale: (locale) =>
+        set({ locale }),
+      setTimezone: (tz) =>
+        set({ timezone: tz }),
       toggleSidebar: () =>
         set((s) => ({ sidebarOpen: !s.sidebarOpen })),
       setSidebarWidth: (width) =>
@@ -54,6 +64,8 @@ export const useUiStore = create<UiState>()(
       name: 'goclaw-ui',
       partialize: (s) => ({
         theme: s.theme,
+        locale: s.locale,
+        timezone: s.timezone,
         sidebarOpen: s.sidebarOpen,
         sidebarWidth: s.sidebarWidth,
         onboarded: s.onboarded,

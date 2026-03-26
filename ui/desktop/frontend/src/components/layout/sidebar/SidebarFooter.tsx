@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSessions } from '../../../hooks/use-sessions'
 import { useUiStore } from '../../../stores/ui-store'
 import { getWsClient } from '../../../lib/ws'
 
 export function SidebarFooter() {
+  const { t } = useTranslation('desktop')
   const { createSession } = useSessions()
   const openSettings = useUiStore((s) => s.openSettings)
   const closeSettings = useUiStore((s) => s.closeSettings)
@@ -27,14 +29,14 @@ export function SidebarFooter() {
         onClick={() => { createSession(); closeSettings() }}
         className="wails-no-drag w-full py-2 px-3 rounded-lg bg-accent text-white text-sm font-medium text-center hover:bg-accent-hover transition-colors"
       >
-        + New Chat
+        + {t('sidebar.newChat')}
       </button>
 
       <div className="flex items-center justify-between px-1">
         {/* Connection status */}
         <div className="flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success' : 'bg-error'}`} />
-          <span className="text-[10px] text-text-muted">{connected ? 'Connected' : 'Offline'}</span>
+          <span className="text-[10px] text-text-muted">{connected ? t('sidebar.connected') : t('sidebar.offline')}</span>
         </div>
 
         {/* Action buttons */}
@@ -43,7 +45,7 @@ export function SidebarFooter() {
           <button
             onClick={toggleTheme}
             className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-surface-tertiary transition-colors"
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            title={theme === 'dark' ? t('sidebar.lightMode') : t('sidebar.darkMode')}
           >
             {theme === 'dark' ? (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
@@ -56,7 +58,7 @@ export function SidebarFooter() {
           <button
             onClick={() => openSettings()}
             className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-surface-tertiary transition-colors"
-            title="Settings (⌘,)"
+            title={`${t('sidebar.settings')} (⌘,)`}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />

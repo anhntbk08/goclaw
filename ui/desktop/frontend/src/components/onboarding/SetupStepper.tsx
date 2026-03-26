@@ -1,15 +1,19 @@
+import { useTranslation } from 'react-i18next'
+
 interface SetupStepperProps {
   currentStep: 1 | 2 | 3
   completedSteps: number[]
 }
 
-const STEPS = [
-  { num: 1, label: 'Provider' },
-  { num: 2, label: 'Model' },
-  { num: 3, label: 'Agent' },
-]
-
 export function SetupStepper({ currentStep, completedSteps }: SetupStepperProps) {
+  const { t } = useTranslation('desktop')
+
+  const STEPS = [
+    { num: 1, label: t('onboarding.stepProvider') },
+    { num: 2, label: t('onboarding.stepModel') },
+    { num: 3, label: t('onboarding.stepAgent') },
+  ]
+
   return (
     <div className="flex items-center justify-center gap-0 mb-6">
       {STEPS.map((step, i) => {

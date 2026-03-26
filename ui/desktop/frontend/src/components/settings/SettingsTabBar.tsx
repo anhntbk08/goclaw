@@ -1,15 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import type { SettingsTab } from '../../stores/ui-store'
 
-const TABS: { key: SettingsTab; label: string }[] = [
-  { key: 'appearance', label: 'Appearance' },
-  { key: 'providers', label: 'Providers' },
-  { key: 'agents', label: 'Agents' },
-  { key: 'mcp', label: 'MCP' },
-  { key: 'skills', label: 'Skills' },
-  { key: 'tools', label: 'Tools' },
-  { key: 'cron', label: 'Cron' },
-  { key: 'traces', label: 'Traces' },
-  { key: 'about', label: 'About' },
+const TAB_KEYS: SettingsTab[] = [
+  'appearance', 'providers', 'agents', 'mcp', 'skills', 'tools', 'cron', 'traces', 'about',
 ]
 
 interface SettingsTabBarProps {
@@ -18,20 +11,21 @@ interface SettingsTabBarProps {
 }
 
 export function SettingsTabBar({ activeTab, onTabChange }: SettingsTabBarProps) {
+  const { t } = useTranslation('desktop')
   return (
     <div className="flex gap-1 overflow-x-auto px-1 pb-1 border-b border-border">
-      {TABS.map((tab) => (
+      {TAB_KEYS.map((key) => (
         <button
-          key={tab.key}
-          onClick={() => onTabChange(tab.key)}
+          key={key}
+          onClick={() => onTabChange(key)}
           className={[
             'shrink-0 px-3 py-1.5 text-xs rounded-md transition-colors',
-            activeTab === tab.key
+            activeTab === key
               ? 'bg-accent/10 text-accent font-medium'
               : 'text-text-muted hover:text-text-primary hover:bg-surface-tertiary',
           ].join(' ')}
         >
-          {tab.label}
+          {t(`settings.tabs.${key}`)}
         </button>
       ))}
     </div>

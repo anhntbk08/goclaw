@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Combobox } from '../../common/Combobox'
 import type { MCPServerData, MCPAgentGrant } from '../../../types/mcp'
 import type { AgentData } from '../../../types/agent'
@@ -14,6 +15,7 @@ interface McpGrantsDialogProps {
 }
 
 export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGrants, onGrant, onRevoke }: McpGrantsDialogProps) {
+  const { t } = useTranslation(['mcp', 'common'])
   const [grants, setGrants] = useState<MCPAgentGrant[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState('')
@@ -90,9 +92,9 @@ export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGran
                 <circle cx="9" cy="7" r="4" />
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              <span className="text-sm font-semibold text-text-primary">Agent Grants — {displayName}</span>
+              <span className="text-sm font-semibold text-text-primary">{t('grants.title', { name: displayName })}</span>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">Grant agents access to this MCP server</p>
+            <p className="text-xs text-text-muted mt-0.5">{t('grants.addGrant')}</p>
           </div>
           <button onClick={() => onOpenChange(false)} className="p-1 text-text-muted hover:text-text-primary transition-colors">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -110,7 +112,7 @@ export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGran
                 <svg className="h-4 w-4 animate-spin text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
               </div>
             ) : grants.length === 0 ? (
-              <p className="text-xs text-text-muted text-center py-4">No agents granted access</p>
+              <p className="text-xs text-text-muted text-center py-4">{t('grants.noAgentsGranted')}</p>
             ) : (
               grants.map((grant) => (
                 <div key={grant.id} className="flex items-center justify-between border border-border rounded-lg px-3 py-2">
@@ -122,7 +124,7 @@ export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGran
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                       <path d="M18 6 6 18" /><path d="m6 6 12 12" />
                     </svg>
-                    Revoke
+                    {t('grants.revoke')}
                   </button>
                 </div>
               ))
@@ -135,12 +137,12 @@ export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGran
           {availableAgents.length > 0 && (
             <div className="flex items-end gap-2 border-t border-border pt-4">
               <div className="flex-1">
-                <label className="text-xs font-medium text-text-secondary mb-1 block">Add agent</label>
+                <label className="text-xs font-medium text-text-secondary mb-1 block">{t('grants.addGrant')}</label>
                 <Combobox
                   value={selectedAgent}
                   onChange={setSelectedAgent}
                   options={availableAgents}
-                  placeholder="Select agent..."
+                  placeholder={t('grants.selectAgent')}
                 />
               </div>
               <button
@@ -148,7 +150,7 @@ export function McpGrantsDialog({ open, onOpenChange, server, agents, onLoadGran
                 disabled={!selectedAgent || granting}
                 className="bg-accent text-white rounded-lg px-4 py-2.5 text-xs hover:bg-accent-hover disabled:opacity-50 transition-colors shrink-0"
               >
-                {granting ? 'Granting...' : 'Grant'}
+                {granting ? t('common:loading') : t('grants.grant')}
               </button>
             </div>
           )}

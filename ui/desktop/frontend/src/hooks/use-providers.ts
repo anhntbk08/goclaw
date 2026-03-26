@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getApiClient } from '../lib/api'
+import { toast } from '../stores/toast-store'
 import type { ProviderData, ProviderInput } from '../types/provider'
 
 export function useProviders() {
@@ -20,20 +21,38 @@ export function useProviders() {
   useEffect(() => { fetchProviders() }, [fetchProviders])
 
   const createProvider = useCallback(async (input: ProviderInput) => {
-    const res = await getApiClient().post<ProviderData>('/v1/providers', input)
-    setProviders((prev) => [...prev, res])
-    return res
+    try {
+      const res = await getApiClient().post<ProviderData>('/v1/providers', input)
+      setProviders((prev) => [...prev, res])
+      toast.success('Provider created')
+      return res
+    } catch (err) {
+      toast.error('Failed to create provider', (err as Error).message)
+      throw err
+    }
   }, [])
 
   const updateProvider = useCallback(async (id: string, input: Partial<ProviderInput>) => {
-    const res = await getApiClient().put<ProviderData>(`/v1/providers/${id}`, input)
-    setProviders((prev) => prev.map((p) => p.id === id ? res : p))
-    return res
+    try {
+      const res = await getApiClient().put<ProviderData>(`/v1/providers/${id}`, input)
+      setProviders((prev) => prev.map((p) => p.id === id ? res : p))
+      toast.success('Provider updated')
+      return res
+    } catch (err) {
+      toast.error('Failed to update provider', (err as Error).message)
+      throw err
+    }
   }, [])
 
   const deleteProvider = useCallback(async (id: string) => {
-    await getApiClient().delete(`/v1/providers/${id}`)
-    setProviders((prev) => prev.filter((p) => p.id !== id))
+    try {
+      await getApiClient().delete(`/v1/providers/${id}`)
+      setProviders((prev) => prev.filter((p) => p.id !== id))
+      toast.success('Provider deleted')
+    } catch (err) {
+      toast.error('Failed to delete provider', (err as Error).message)
+      throw err
+    }
   }, [])
 
   const verifyProvider = useCallback(async (input: { provider_type: string; api_base?: string; api_key?: string }) => {

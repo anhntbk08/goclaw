@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { AgentData } from '../../../types/agent'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -10,6 +11,7 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent, onEdit, onDelete, onResummon }: AgentCardProps) {
+  const { t } = useTranslation('agents')
   const displayName = agent.display_name
     || (UUID_RE.test(agent.agent_key) ? 'Unnamed Agent' : agent.agent_key)
   const otherCfg = (agent.other_config ?? {}) as Record<string, unknown>
@@ -95,7 +97,7 @@ export function AgentCard({ agent, onEdit, onDelete, onResummon }: AgentCardProp
             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            {selfEvolve ? 'Evolving' : 'Static'}
+            {selfEvolve ? t('card.evolving') : t('card.static')}
           </span>
         )}
         {agent.context_window > 0 && (

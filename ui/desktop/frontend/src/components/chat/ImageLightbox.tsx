@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface LightboxImage {
   src: string
@@ -19,6 +20,7 @@ const btnClass =
   'rounded-full bg-white/90 dark:bg-neutral-800/90 p-2.5 text-neutral-700 dark:text-neutral-200 shadow-md ring-1 ring-black/10 dark:ring-white/10 hover:bg-white dark:hover:bg-neutral-700 transition-colors cursor-pointer'
 
 export function ImageLightbox(props: ImageLightboxProps) {
+  const { t } = useTranslation('common')
   const { onClose, images, currentIndex, onNavigate } = props
   const isGallery = images && images.length > 1 && onNavigate && currentIndex != null
   const current = isGallery ? images[currentIndex] : { src: props.src, alt: props.alt }
@@ -53,7 +55,7 @@ export function ImageLightbox(props: ImageLightboxProps) {
           download
           onClick={(e) => e.stopPropagation()}
           className={btnClass}
-          title="Download"
+          title={t('download')}
         >
           {/* Download icon */}
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

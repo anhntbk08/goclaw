@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { getWsClient } from '../lib/ws'
+import { getApiClient } from '../lib/api'
 import { useChatStore } from '../stores/chat-store'
 import { useSessionStore } from '../stores/session-store'
+import type { AttachedFile } from '../components/chat/InputBar'
 
 // RAF batching — prevents 100+ setState calls/sec during streaming
 function useStreamBatcher(onFlush: (text: string) => void) {
@@ -187,14 +189,13 @@ export function useChat() {
   ]) // sessionKeyRef used instead of activeSessionKey — no re-subscribe on session change
 
   const sendMessage = useCallback(
-    async (text: string, agentId: string) => {
-      if (!ws || !text.trim()) return
+    async (text: string, agentId: string, attachedFiles?: AttachedFile[]) => {
+      if (!ws || (!text.trim() && !attachedFiles?.length)) return
 
       // Auto-create session if none active
       let sessionKey = activeSessionKey
       if (!sessionKey) {
         sessionKey = `agent:${agentId}:ws:direct:system:${crypto.randomUUID().slice(0, 8)}`
-        // Import and update session store directly
         const { useSessionStore } = await import('../stores/session-store')
         useSessionStore.getState().addSession({
           key: sessionKey,
@@ -208,12 +209,34 @@ export function useChat() {
 
       addUserMessage(text)
 
+      // Upload files via HTTP, collect server paths for chat.send
+      let media: { path: string; filename: string }[] | undefined
+      if (attachedFiles?.length) {
+        const api = getApiClient()
+        const uploads = await Promise.all(
+          attachedFiles.map(async (af) => {
+            try {
+              const res = await api.uploadFile<{ path: string; mime_type: string; filename: string }>(
+                '/v1/media/upload', af.file,
+              )
+              return { path: res.path, filename: res.filename }
+            } catch (err) {
+              console.error('File upload failed:', af.name, err)
+              return null
+            }
+          }),
+        )
+        media = uploads.filter((u): u is { path: string; filename: string } => u !== null)
+        if (media.length === 0) media = undefined
+      }
+
       try {
         await ws.call('chat.send', {
           message: text,
           agentId,
           sessionKey,
           stream: true,
+          ...(media && { media }),
         })
       } catch (err) {
         console.error('chat.send failed:', err)

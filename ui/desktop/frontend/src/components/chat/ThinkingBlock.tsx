@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ThinkingBlockProps {
   text: string
@@ -6,6 +7,7 @@ interface ThinkingBlockProps {
 }
 
 export function ThinkingBlock({ text, isStreaming }: ThinkingBlockProps) {
+  const { t } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
 
   // Auto-expand when streaming starts, keep user's choice when done
@@ -30,7 +32,7 @@ export function ThinkingBlock({ text, isStreaming }: ThinkingBlockProps) {
           <path d="M3.477 10.896a4 4 0 0 1 .585-.396" /><path d="M19.938 10.5a4 4 0 0 1 .585.396" />
           <path d="M6 18a4 4 0 0 1-1.967-.516" /><path d="M19.967 17.484A4 4 0 0 1 18 18" />
         </svg>
-        <span>{isStreaming ? 'Thinking...' : 'Thinking'}</span>
+        <span>{isStreaming ? t('thinkingStreaming') : t('thinking')}</span>
         {isStreaming && (
           <span className="inline-block w-1.5 h-3.5 bg-text-muted/50 animate-pulse rounded-sm" />
         )}

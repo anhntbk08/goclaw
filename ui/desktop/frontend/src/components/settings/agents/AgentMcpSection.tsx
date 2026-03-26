@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient, isApiClientReady } from '../../../lib/api'
 import { Switch } from '../../common/Switch'
 import type { MCPServerData, MCPAgentGrant } from '../../../types/mcp'
@@ -8,6 +9,7 @@ interface AgentMcpSectionProps {
 }
 
 export function AgentMcpSection({ agentId }: AgentMcpSectionProps) {
+  const { t } = useTranslation('mcp')
   const [servers, setServers] = useState<MCPServerData[]>([])
   const [grants, setGrants] = useState<MCPAgentGrant[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,10 +68,10 @@ export function AgentMcpSection({ agentId }: AgentMcpSectionProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">MCP Servers</h3>
+        <h3 className="text-sm font-semibold text-text-primary">{t('title')}</h3>
         {!loading && servers.length > 0 && (
           <span className="text-[11px] text-text-muted">
-            Granted: {grantedCount}/{servers.length}
+            {t('grants.currentGrants')}: {grantedCount}/{servers.length}
           </span>
         )}
       </div>
@@ -83,7 +85,7 @@ export function AgentMcpSection({ agentId }: AgentMcpSectionProps) {
           ))}
         </div>
       ) : servers.length === 0 ? (
-        <p className="text-xs text-text-muted py-3 text-center">No MCP servers configured</p>
+        <p className="text-xs text-text-muted py-3 text-center">{t('emptyTitle')}</p>
       ) : (
         <div className="rounded-lg border border-border divide-y divide-border">
           {servers.map((server) => (

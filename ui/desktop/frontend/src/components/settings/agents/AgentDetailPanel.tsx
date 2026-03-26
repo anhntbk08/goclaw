@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PersonalitySection } from './PersonalitySection'
 import { ModelBudgetSection } from './ModelBudgetSection'
 import { EvolutionSection } from './EvolutionSection'
@@ -18,6 +19,7 @@ interface AgentDetailPanelProps {
 }
 
 export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDetailPanelProps) {
+  const { t } = useTranslation(['agents', 'common'])
   const [tab, setTab] = useState<DetailTab>('overview')
 
   // --- Overview local state ---
@@ -101,24 +103,24 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" />
           </svg>
-          Resummon
+          {t('agents:files.resummon')}
         </button>
       </div>
 
       {/* Tab bar */}
       <div className="flex gap-1 px-4 pt-2 border-b border-border bg-surface-secondary shrink-0">
-        {(['overview', 'files'] as const).map((t) => (
+        {(['overview', 'files'] as const).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={[
               'px-3 py-1.5 text-xs rounded-t-md transition-colors -mb-px border-b-2',
-              tab === t
+              tab === tabKey
                 ? 'border-accent text-accent font-medium'
                 : 'border-transparent text-text-muted hover:text-text-primary',
             ].join(' ')}
           >
-            {t === 'overview' ? 'Overview' : 'Files'}
+            {tabKey === 'overview' ? t('agents:detail.tabs.agent') : t('agents:detail.tabs.files')}
           </button>
         ))}
       </div>
@@ -169,7 +171,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
             {saveError && <p className="text-xs text-error flex-1">{saveError}</p>}
             <div className="flex items-center gap-3 ml-auto">
               <button onClick={onClose} className="px-4 py-2 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors">
-                Cancel
+                {t('common:cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -177,7 +179,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
                 className="px-5 py-2 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                {saving ? 'Saving...' : saveBlocked ? 'Verify model first' : 'Save Changes'}
+                {saving ? t('common:saving') : saveBlocked ? t('agents:create.check') : t('common:saveChanges')}
               </button>
             </div>
           </div>
@@ -188,9 +190,9 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
       <ConfirmDialog
         open={confirmResummon}
         onOpenChange={setConfirmResummon}
-        title="Resummon agent?"
-        description="This will regenerate SOUL.md and IDENTITY.md. The agent's personality may change."
-        confirmLabel="Resummon"
+        title={t('agents:files.resummonTitle')}
+        description={t('agents:files.resummonDesc')}
+        confirmLabel={t('agents:files.resummonConfirm')}
         variant="default"
         onConfirm={handleConfirmResummon}
       />

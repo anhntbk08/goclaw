@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient } from '../../lib/api'
 import { Combobox } from '../common/Combobox'
 import type { ProviderData } from '../../types/provider'
@@ -13,6 +14,7 @@ interface ModelVerifyStepProps {
 }
 
 export function ModelVerifyStep({ provider, initialModel, onBack, onComplete }: ModelVerifyStepProps) {
+  const { t } = useTranslation(['desktop', 'common'])
   const [models, setModels] = useState<string[]>([])
   const [model, setModel] = useState(initialModel ?? '')
   const [loading, setLoading] = useState(true)
@@ -74,10 +76,10 @@ export function ModelVerifyStep({ provider, initialModel, onBack, onComplete }: 
       if (result.valid) {
         setVerified(true)
       } else {
-        setError(result.error ?? 'Verification failed')
+        setError(result.error ?? t('desktop:agent.verifyFailed'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed')
+      setError(err instanceof Error ? err.message : t('desktop:agent.verifyFailed'))
     } finally {
       setVerifying(false)
     }
@@ -86,10 +88,10 @@ export function ModelVerifyStep({ provider, initialModel, onBack, onComplete }: 
   const providerLabel = provider.display_name || provider.name
 
   const verifyButtonLabel = verifying
-    ? `Verifying (${countdown}s)`
+    ? `${t('desktop:agent.verifying')} (${countdown}s)`
     : verified
-      ? 'Verified'
-      : 'Verify'
+      ? t('desktop:agent.verified')
+      : t('desktop:agent.verifyModel')
 
   return (
     <div className="bg-surface-secondary border border-border rounded-xl p-6 space-y-4">
@@ -113,7 +115,7 @@ export function ModelVerifyStep({ provider, initialModel, onBack, onComplete }: 
           value={model}
           onChange={setModel}
           options={models.map((m) => ({ value: m, label: m }))}
-          placeholder={loading ? 'Loading models...' : 'Search or type a model name...'}
+          placeholder={loading ? t('common:loadingModels') : t('common:enterOrSelectModel')}
           loading={loading}
           allowCustom
         />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getWsClient } from '../../../lib/ws'
 import { getApiClient } from '../../../lib/api'
 import type { BootstrapFile } from '../../../types/agent'
@@ -13,6 +14,7 @@ interface AgentFilesTabProps {
 }
 
 export function AgentFilesTab({ agentId, agentKey, agentType }: AgentFilesTabProps) {
+  const { t } = useTranslation('agents')
   const [files, setFiles] = useState<BootstrapFile[]>([])
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [content, setContent] = useState('')
@@ -150,7 +152,7 @@ export function AgentFilesTab({ agentId, agentKey, agentType }: AgentFilesTabPro
                   className="px-3 py-1 text-[11px] bg-accent text-white rounded-md font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 flex items-center gap-1.5"
                 >
                   {saving && <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? t('files.saving') : t('files.save')}
                 </button>
               </div>
               {fileLoading ? (
@@ -192,6 +194,7 @@ function RegenerateDialog({ open, onOpenChange, onRegenerate }: {
   onOpenChange: (open: boolean) => void
   onRegenerate: (prompt: string) => Promise<void>
 }) {
+  const { t } = useTranslation('agents')
   const [prompt, setPrompt] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -241,7 +244,7 @@ function RegenerateDialog({ open, onOpenChange, onRegenerate }: {
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            {loading ? 'Sending...' : 'Regenerate'}
+            {loading ? t('fileEditor.sending') : t('fileEditor.regenerate')}
           </button>
         </div>
       </div>

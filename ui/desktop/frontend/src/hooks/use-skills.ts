@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getApiClient, isApiClientReady } from '../lib/api'
+import { toast } from '../stores/toast-store'
 import type { SkillInfo } from '../types/skill'
 
 export const MAX_SKILLS_LITE = 10
@@ -52,9 +53,15 @@ export function useSkills() {
   }, [])
 
   const uploadSkill = useCallback(async (file: File): Promise<UploadResult> => {
-    const res = await getApiClient().uploadFile<UploadResult>('/v1/skills/upload', file)
-    await fetchSkills()
-    return res
+    try {
+      const res = await getApiClient().uploadFile<UploadResult>('/v1/skills/upload', file)
+      await fetchSkills()
+      toast.success('Skill uploaded')
+      return res
+    } catch (err) {
+      toast.error('Failed to upload skill', (err as Error).message)
+      throw err
+    }
   }, [fetchSkills])
 
   const checkRuntimes = useCallback(async (): Promise<RuntimeStatus | null> => {
@@ -63,8 +70,14 @@ export function useSkills() {
   }, [])
 
   const deleteSkill = useCallback(async (id: string) => {
-    await getApiClient().delete(`/v1/skills/${encodeURIComponent(id)}`)
-    setSkills((prev) => prev.filter((s) => s.id !== id))
+    try {
+      await getApiClient().delete(`/v1/skills/${encodeURIComponent(id)}`)
+      setSkills((prev) => prev.filter((s) => s.id !== id))
+      toast.success('Skill deleted')
+    } catch (err) {
+      toast.error('Failed to delete skill', (err as Error).message)
+      throw err
+    }
   }, [])
 
   const atLimit = skills.length >= MAX_SKILLS_LITE

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Combobox } from '../../common/Combobox'
 import { useProviders } from '../../../hooks/use-providers'
 import { getApiClient } from '../../../lib/api'
@@ -23,6 +24,7 @@ export function ModelBudgetSection({
   onProviderChange, onModelChange, onContextWindowChange, onMaxToolIterationsChange,
   onSaveBlockedChange,
 }: ModelBudgetSectionProps) {
+  const { t } = useTranslation(['agents', 'common'])
   const { providers } = useProviders()
   const [models, setModels] = useState<string[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
@@ -96,21 +98,21 @@ export function ModelBudgetSection({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-text-primary">Model & Configuration</h3>
+      <h3 className="text-sm font-semibold text-text-primary">{t('agents:detail.modelBudget')}</h3>
 
       {/* Provider + Model */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Provider</label>
-          <Combobox value={provider} onChange={onProviderChange} options={providerOptions} placeholder="Select provider..." />
+          <label className="text-xs font-medium text-text-secondary">{t('common:provider')}</label>
+          <Combobox value={provider} onChange={onProviderChange} options={providerOptions} placeholder={t('agents:create.selectProvider')} />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Model</label>
+          <label className="text-xs font-medium text-text-secondary">{t('common:model')}</label>
           <Combobox
             value={model}
             onChange={onModelChange}
             options={modelOptions}
-            placeholder={modelsLoading ? 'Loading...' : 'Select model...'}
+            placeholder={modelsLoading ? t('common:loading') : t('agents:create.enterOrSelectModel')}
             allowCustom
           />
         </div>
@@ -124,15 +126,15 @@ export function ModelBudgetSection({
             disabled={verifying}
             className="text-xs px-3 py-1.5 border border-accent text-accent rounded-lg hover:bg-accent/10 transition-colors disabled:opacity-50"
           >
-            {verifying ? 'Verifying...' : 'Verify Model'}
+            {verifying ? t('agents:create.checking') : t('agents:create.check')}
           </button>
           {verifyResult && (
             <span className={`text-xs ${verifyResult.valid ? 'text-success' : 'text-error'}`}>
-              {verifyResult.valid ? 'Verified' : verifyResult.error}
+              {verifyResult.valid ? t('common:modelVerified') : verifyResult.error}
             </span>
           )}
           {!verifyResult && (
-            <span className="text-[11px] text-warning">Save blocked until model is verified</span>
+            <span className="text-[11px] text-warning">{t('common:checkAndCreate')}</span>
           )}
         </div>
       )}
@@ -140,7 +142,7 @@ export function ModelBudgetSection({
       {/* Context window + Max iterations */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Context Window</label>
+          <label className="text-xs font-medium text-text-secondary">{t('agents:llmConfig.contextWindow')}</label>
           <input
             type="number"
             value={contextWindow || ''}
@@ -148,10 +150,10 @@ export function ModelBudgetSection({
             placeholder="200000"
             className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
           />
-          <p className="text-[10px] text-text-muted">Token limit for conversation context</p>
+          <p className="text-[10px] text-text-muted">{t('agents:llmConfig.contextWindowHint')}</p>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-text-secondary">Max Tool Iterations</label>
+          <label className="text-xs font-medium text-text-secondary">{t('agents:llmConfig.maxToolIterations')}</label>
           <input
             type="number"
             value={maxToolIterations || ''}
@@ -159,7 +161,7 @@ export function ModelBudgetSection({
             placeholder="25"
             className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
           />
-          <p className="text-[10px] text-text-muted">Max tool call rounds per turn</p>
+          <p className="text-[10px] text-text-muted">{t('agents:llmConfig.maxToolIterationsHint')}</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Switch } from '../../common/Switch'
 import { KeyValueEditor } from '../../common/KeyValueEditor'
 import type { MCPServerData, MCPServerInput, MCPTestResult } from '../../../types/mcp'
@@ -21,6 +22,7 @@ function slugify(v: string): string {
 }
 
 export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: McpFormDialogProps) {
+  const { t } = useTranslation(['mcp', 'common'])
   const isEdit = Boolean(server)
 
   const [name, setName] = useState('')
@@ -137,7 +139,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
       <div className="relative w-full max-w-lg bg-surface-secondary rounded-xl border border-border overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <span className="text-sm font-semibold text-text-primary">{isEdit ? 'Edit Server' : 'Add Server'}</span>
+          <span className="text-sm font-semibold text-text-primary">{isEdit ? t('form.editTitle') : t('form.createTitle')}</span>
           <button onClick={() => onOpenChange(false)} className="p-1 text-text-muted hover:text-text-primary transition-colors">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -149,7 +151,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
         <div className="max-h-[70vh] overflow-y-auto p-5 space-y-4">
           {/* Name */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Name *</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.name')}</label>
             <input
               value={name}
               onChange={(e) => setName(slugify(e.target.value))}
@@ -157,23 +159,23 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
               placeholder="my-mcp-server"
               className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
             />
-            <p className="text-[11px] text-text-muted">Lowercase letters, numbers, and hyphens only</p>
+            <p className="text-[11px] text-text-muted">{t('form.nameHint')}</p>
           </div>
 
           {/* Display Name */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Display Name</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.displayName')}</label>
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="My MCP Server"
+              placeholder={t('form.displayNamePlaceholder')}
               className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           {/* Transport */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Transport *</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.transport')}</label>
             <div className="grid grid-cols-3 gap-2">
               {TRANSPORTS.map((t) => (
                 <button
@@ -196,7 +198,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
           {transport === 'stdio' && (
             <>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-text-secondary">Command *</label>
+                <label className="text-xs font-medium text-text-secondary">{t('form.command')}</label>
                 <input
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
@@ -205,11 +207,11 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-text-secondary">Args</label>
+                <label className="text-xs font-medium text-text-secondary">{t('form.args')}</label>
                 <input
                   value={args}
                   onChange={(e) => setArgs(e.target.value)}
-                  placeholder="--flag1 --flag2"
+                  placeholder={t('form.argsPlaceholder')}
                   className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 font-mono text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
@@ -220,7 +222,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
           {transport !== 'stdio' && (
             <>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-text-secondary">URL *</label>
+                <label className="text-xs font-medium text-text-secondary">{t('form.url')}</label>
                 <input
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
@@ -229,12 +231,12 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-text-secondary">Headers</label>
+                <label className="text-xs font-medium text-text-secondary">{t('form.headers')}</label>
                 <KeyValueEditor
                   value={headers}
                   onChange={setHeaders}
                   sensitivePattern={SENSITIVE_HEADER_KEYS}
-                  placeholder={{ key: 'Header name', value: 'Header value' }}
+                  placeholder={{ key: t('form.headerKeyPlaceholder'), value: t('form.headerValuePlaceholder') }}
                 />
               </div>
             </>
@@ -242,18 +244,18 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
 
           {/* Env Variables */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Environment Variables</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.env')}</label>
             <KeyValueEditor
               value={env}
               onChange={setEnv}
               sensitivePattern={SENSITIVE_ENV_KEYS}
-              placeholder={{ key: 'ENV_VAR', value: 'value' }}
+              placeholder={{ key: t('form.envKeyPlaceholder'), value: t('form.envValuePlaceholder') }}
             />
           </div>
 
           {/* Tool Prefix */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Tool Prefix</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.toolPrefix')}</label>
             <div className="flex items-stretch">
               <span className="inline-flex items-center bg-surface-tertiary/70 border border-r-0 border-border rounded-l-lg px-2.5 text-base md:text-sm text-text-muted select-none">mcp_</span>
               <input
@@ -263,12 +265,12 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
                 className="flex-1 min-w-0 bg-surface-tertiary border border-border rounded-r-lg px-3 py-2 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
-            <p className="text-[11px] text-text-muted">Auto-derived from name if empty</p>
+            <p className="text-[11px] text-text-muted">{t('form.toolPrefixHint')}</p>
           </div>
 
           {/* Timeout */}
           <div className="space-y-1">
-            <label className="text-xs font-medium text-text-secondary">Timeout (seconds)</label>
+            <label className="text-xs font-medium text-text-secondary">{t('form.timeout')}</label>
             <input
               type="number"
               min={1}
@@ -280,7 +282,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
 
           {/* Enabled */}
           <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <span className="text-xs font-medium text-text-primary">Enabled</span>
+            <span className="text-xs font-medium text-text-primary">{t('form.enabled')}</span>
             <Switch checked={enabled} onCheckedChange={setEnabled} />
           </div>
         </div>
@@ -298,7 +300,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6 9 17l-5-5" />
               </svg>
-              {testResult.tool_count} tool{testResult.tool_count !== 1 ? 's' : ''} found
+              {t('form.toolsFound', { count: testResult.tool_count })}
             </p>
           )}
           {testState === 'error' && testResult && (
@@ -306,7 +308,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
               <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18" /><path d="m6 6 12 12" />
               </svg>
-              <span className="break-all">{testResult.error || 'Connection failed'}</span>
+              <span className="break-all">{testResult.error || t('form.errors.connectionFailed')}</span>
             </p>
           )}
 
@@ -320,9 +322,9 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
             {testState === 'testing' ? (
               <span className="flex items-center gap-1.5">
                 <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                Testing...
+                {t('form.testing')}
               </span>
-            ) : 'Test Connection'}
+            ) : t('form.testConnection')}
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -330,7 +332,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
               onClick={() => onOpenChange(false)}
               className="border border-border rounded-lg px-4 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary transition-colors"
             >
-              Cancel
+              {t('form.cancel')}
             </button>
             <button
               type="button"
@@ -338,7 +340,7 @@ export function McpFormDialog({ open, onOpenChange, server, onSubmit, onTest }: 
               disabled={!canSubmit}
               className="bg-accent rounded-lg px-4 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving...' : isEdit ? 'Update' : 'Create'}
+              {saving ? t('form.saving') : isEdit ? t('form.update') : t('form.create')}
             </button>
           </div>
           </div>

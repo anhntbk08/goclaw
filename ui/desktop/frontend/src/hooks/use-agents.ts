@@ -1,12 +1,15 @@
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback } from 'react'
 import { getApiClient } from '../lib/api'
 import { useAgentStore } from '../stores/agent-store'
 import type { Agent } from '../stores/agent-store'
 
+// Module-level flag: prevents re-fetching agents on every component mount.
+// Multiple components call useAgents() — only the first triggers the fetch.
+let didFetchAgents = false
+
 export function useAgents() {
   const { agents, selectedAgentId, setAgents, selectAgent } = useAgentStore()
   const api = getApiClient()
-  const didAutoSelect = useRef(false)
 
   const fetchAgents = useCallback(async () => {
     if (!api) return
@@ -40,11 +43,13 @@ export function useAgents() {
     }
   }, [api, setAgents])
 
-  // Fetch once on mount
+  // Fetch once globally, auto-select first agent only if none selected
   useEffect(() => {
+    if (didFetchAgents) return
+    didFetchAgents = true
     fetchAgents().then((mapped) => {
-      if (!didAutoSelect.current && mapped && mapped.length > 0) {
-        didAutoSelect.current = true
+      // Only auto-select if no agent is currently selected (survives remounts)
+      if (!useAgentStore.getState().selectedAgentId && mapped && mapped.length > 0) {
         selectAgent(mapped[0].id)
       }
     })
@@ -57,6 +62,9 @@ export function useAgents() {
     selectedAgent,
     selectedAgentId,
     selectAgent,
-    refreshAgents: fetchAgents,
+    refreshAgents: () => {
+      didFetchAgents = false // allow re-fetch
+      return fetchAgents()
+    },
   }
 }

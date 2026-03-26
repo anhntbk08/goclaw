@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
@@ -8,6 +9,7 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ language, code }: CodeBlockProps) {
+  const { t } = useTranslation('common')
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -24,7 +26,7 @@ export function CodeBlock({ language, code }: CodeBlockProps) {
           onClick={handleCopy}
           className="text-text-muted hover:text-text-primary transition-colors"
         >
-          {copied ? 'Copied!' : 'Copy'}
+          {copied ? `${t('copy')}!` : t('copy')}
         </button>
       </div>
       <SyntaxHighlighter

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAgentCrud } from '../../../hooks/use-agent-crud'
 import { useAgentStore } from '../../../stores/agent-store'
 import { AgentCard } from './AgentCard'
@@ -9,6 +10,7 @@ import { SummoningModal } from '../../onboarding/SummoningModal'
 import type { AgentData, AgentInput } from '../../../types/agent'
 
 export function AgentList() {
+  const { t } = useTranslation(['agents', 'common'])
   const { agents, loading, atLimit, createAgent, updateAgent, deleteAgent, resummonAgent, fetchAgents } = useAgentCrud()
   const setStoreAgents = useAgentStore((s) => s.setAgents)
 
@@ -18,13 +20,17 @@ export function AgentList() {
   const [summoningAgent, setSummoningAgent] = useState<{ id: string; name: string } | null>(null)
 
   const refreshSidebar = useCallback(() => {
-    setStoreAgents(agents.map((a) => ({
-      id: a.id,
-      key: a.agent_key,
-      name: a.display_name || a.agent_key,
-      model: a.model ?? 'unknown',
-      status: 'online' as const,
-    })))
+    setStoreAgents(agents.map((a) => {
+      const otherCfg = typeof a.other_config === 'object' && a.other_config !== null ? a.other_config as Record<string, unknown> : {}
+      return {
+        id: a.id,
+        key: a.agent_key,
+        name: a.display_name || a.agent_key,
+        model: a.model ?? 'unknown',
+        status: 'online' as const,
+        emoji: typeof otherCfg.emoji === 'string' ? otherCfg.emoji : undefined,
+      }
+    }))
   }, [agents, setStoreAgents])
 
   const handleCreate = async (input: AgentInput) => {
@@ -61,20 +67,20 @@ export function AgentList() {
   }
 
   if (loading) {
-    return <p className="text-xs text-text-muted py-4">Loading agents...</p>
+    return <p className="text-xs text-text-muted py-4">{t('common:loading', 'Loading...')}</p>
   }
 
   return (
     <>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Agents</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t('agents:title')}</h3>
           <button
             onClick={() => setFormOpen(true)}
             disabled={atLimit}
             className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
           >
-            + Add Agent
+            + {t('agents:createAgent')}
           </button>
         </div>
 
@@ -83,7 +89,7 @@ export function AgentList() {
         )}
 
         {agents.length === 0 ? (
-          <p className="text-xs text-text-muted py-4 text-center">No agents configured.</p>
+          <p className="text-xs text-text-muted py-4 text-center">{t('agents:emptyTitle')}</p>
         ) : (
           <div className="grid grid-cols-1 gap-2">
             {agents.map((a) => (
