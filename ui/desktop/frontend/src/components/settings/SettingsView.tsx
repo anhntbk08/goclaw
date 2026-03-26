@@ -3,6 +3,7 @@ import { SettingsTabBar } from './SettingsTabBar'
 import { AppearanceTab } from './AppearanceTab'
 import { AboutTab } from './AboutTab'
 import { ProviderList } from './providers/ProviderList'
+import { AgentList } from './agents/AgentList'
 
 export function SettingsView() {
   const settingsTab = useUiStore((s) => s.settingsTab)
@@ -44,6 +45,7 @@ function TabContent({ tab }: { tab: string }) {
   switch (tab) {
     case 'appearance': return <AppearanceTab />
     case 'providers': return <ProviderList />
+    case 'agents': return <AgentList />
     case 'about': return <AboutTab />
     default:
       return (
