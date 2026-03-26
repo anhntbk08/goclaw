@@ -2,8 +2,12 @@ import { useState, useCallback } from 'react'
 import { PersonalitySection } from './PersonalitySection'
 import { ModelBudgetSection } from './ModelBudgetSection'
 import { EvolutionSection } from './EvolutionSection'
+import { MemorySection } from './MemorySection'
+import { AgentFilesTab } from './AgentFilesTab'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
-import type { AgentData } from '../../../types/agent'
+import type { AgentData, MemoryConfig } from '../../../types/agent'
+
+type DetailTab = 'overview' | 'files'
 
 interface AgentDetailPanelProps {
   agent: AgentData
@@ -13,7 +17,9 @@ interface AgentDetailPanelProps {
 }
 
 export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDetailPanelProps) {
-  // Local state — all changes collected, saved on explicit Save click
+  const [tab, setTab] = useState<DetailTab>('overview')
+
+  // --- Overview local state ---
   const [emoji, setEmoji] = useState((agent.other_config?.emoji as string) ?? '🤖')
   const [displayName, setDisplayName] = useState(agent.display_name ?? '')
   const [description, setDescription] = useState((agent.other_config?.description as string) ?? '')
@@ -24,6 +30,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
   const [contextWindow, setContextWindow] = useState(agent.context_window ?? 200000)
   const [maxToolIterations, setMaxToolIterations] = useState(agent.max_tool_iterations ?? 25)
   const [selfEvolve, setSelfEvolve] = useState(!!(agent.other_config?.self_evolve))
+  const [memoryConfig, setMemoryConfig] = useState<MemoryConfig | null>(agent.memory_config ?? null)
   const [saveBlocked, setSaveBlocked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -36,6 +43,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
       const otherConfig: Record<string, unknown> = { ...agent.other_config }
       if (emoji) otherConfig.emoji = emoji
       if (description.trim()) otherConfig.description = description.trim()
+      else delete otherConfig.description
       otherConfig.self_evolve = selfEvolve
 
       await onSave(agent.id, {
@@ -46,6 +54,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
         max_tool_iterations: maxToolIterations,
         is_default: isDefault,
         status,
+        memory_config: memoryConfig,
         other_config: otherConfig,
       })
       onClose()
@@ -54,7 +63,7 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
     } finally {
       setSaving(false)
     }
-  }, [agent, emoji, displayName, description, selfEvolve, provider, model, contextWindow, maxToolIterations, isDefault, status, onSave, onClose])
+  }, [agent, emoji, displayName, description, selfEvolve, provider, model, contextWindow, maxToolIterations, isDefault, status, memoryConfig, onSave, onClose])
 
   const handleConfirmResummon = async () => {
     setConfirmResummon(false)
@@ -80,84 +89,99 @@ export function AgentDetailPanel({ agent, onSave, onResummon, onClose }: AgentDe
             {displayName || agent.agent_key}
           </h2>
           <div className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${status === 'active' ? 'bg-success' : status === 'summon_failed' ? 'bg-error' : 'bg-idle'}`} />
-            <span className="text-[11px] text-text-muted">{agent.agent_key}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${status === 'active' ? 'bg-success' : status === 'summon_failed' ? 'bg-error' : 'bg-text-muted/50'}`} />
+            <span className="text-[11px] text-text-muted font-mono">{agent.agent_key}</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-tertiary text-text-muted">{agent.agent_type}</span>
           </div>
         </div>
         <button
           onClick={() => setConfirmResummon(true)}
-          className="px-3 py-1.5 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors"
+          className="px-3 py-1.5 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors flex items-center gap-1.5"
         >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" />
+          </svg>
           Resummon
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-          <PersonalitySection
-            emoji={emoji}
-            displayName={displayName}
-            description={description}
-            agentKey={agent.agent_key}
-            agentType={agent.agent_type}
-            isDefault={isDefault}
-            status={status}
-            onEmojiChange={setEmoji}
-            onDisplayNameChange={setDisplayName}
-            onDescriptionChange={setDescription}
-            onIsDefaultChange={setIsDefault}
-            onStatusChange={setStatus}
-          />
-
-          <hr className="border-border" />
-
-          <ModelBudgetSection
-            provider={provider}
-            model={model}
-            contextWindow={contextWindow}
-            maxToolIterations={maxToolIterations}
-            savedProvider={agent.provider}
-            savedModel={agent.model}
-            onProviderChange={setProvider}
-            onModelChange={setModel}
-            onContextWindowChange={setContextWindow}
-            onMaxToolIterationsChange={setMaxToolIterations}
-            onSaveBlockedChange={setSaveBlocked}
-          />
-
-          {isPredefined && (
-            <>
-              <hr className="border-border" />
-              <EvolutionSection selfEvolve={selfEvolve} onSelfEvolveChange={setSelfEvolve} />
-            </>
-          )}
-        </div>
+      {/* Tab bar */}
+      <div className="flex gap-1 px-4 pt-2 border-b border-border bg-surface-secondary shrink-0">
+        {(['overview', 'files'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={[
+              'px-3 py-1.5 text-xs rounded-t-md transition-colors -mb-px border-b-2',
+              tab === t
+                ? 'border-accent text-accent font-medium'
+                : 'border-transparent text-text-muted hover:text-text-primary',
+            ].join(' ')}
+          >
+            {t === 'overview' ? 'Overview' : 'Files'}
+          </button>
+        ))}
       </div>
 
-      {/* Sticky save bar */}
-      <div className="shrink-0 border-t border-border bg-surface-secondary/80 backdrop-blur-sm px-4 py-3">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          {saveError && <p className="text-xs text-error flex-1">{saveError}</p>}
-          <div className="flex items-center gap-3 ml-auto">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || saveBlocked}
-              className="px-5 py-2 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {saving ? 'Saving...' : saveBlocked ? 'Verify model first' : 'Save Changes'}
-            </button>
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        {tab === 'overview' ? (
+          <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+            <PersonalitySection
+              emoji={emoji} displayName={displayName} description={description}
+              agentKey={agent.agent_key} agentType={agent.agent_type}
+              isDefault={isDefault} status={status}
+              onEmojiChange={setEmoji} onDisplayNameChange={setDisplayName}
+              onDescriptionChange={setDescription} onIsDefaultChange={setIsDefault}
+              onStatusChange={setStatus}
+            />
+            <hr className="border-border" />
+            <ModelBudgetSection
+              provider={provider} model={model}
+              contextWindow={contextWindow} maxToolIterations={maxToolIterations}
+              savedProvider={agent.provider} savedModel={agent.model}
+              onProviderChange={setProvider} onModelChange={setModel}
+              onContextWindowChange={setContextWindow} onMaxToolIterationsChange={setMaxToolIterations}
+              onSaveBlockedChange={setSaveBlocked}
+            />
+            <hr className="border-border" />
+            <MemorySection config={memoryConfig} onChange={setMemoryConfig} />
+            {isPredefined && (
+              <>
+                <hr className="border-border" />
+                <EvolutionSection selfEvolve={selfEvolve} onSelfEvolveChange={setSelfEvolve} />
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <AgentFilesTab agentKey={agent.agent_key} agentType={agent.agent_type} />
+          </div>
+        )}
+      </div>
+
+      {/* Sticky save bar — only on overview tab */}
+      {tab === 'overview' && (
+        <div className="shrink-0 border-t border-border bg-surface-secondary/80 backdrop-blur-sm px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            {saveError && <p className="text-xs text-error flex-1">{saveError}</p>}
+            <div className="flex items-center gap-3 ml-auto">
+              <button onClick={onClose} className="px-4 py-2 text-xs border border-border rounded-lg text-text-secondary hover:bg-surface-tertiary transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || saveBlocked}
+                className="px-5 py-2 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                {saving ? 'Saving...' : saveBlocked ? 'Verify model first' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Resummon confirm */}
       <ConfirmDialog

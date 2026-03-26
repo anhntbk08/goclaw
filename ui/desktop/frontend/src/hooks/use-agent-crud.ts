@@ -27,7 +27,7 @@ export function useAgentCrud() {
     return res
   }, [])
 
-  const updateAgent = useCallback(async (id: string, input: Partial<AgentInput>) => {
+  const updateAgent = useCallback(async (id: string, input: Partial<AgentData>) => {
     const res = await getApiClient().put<AgentData>(`/v1/agents/${id}`, input)
     setAgents((prev) => prev.map((a) => a.id === id ? res : a))
     return res
