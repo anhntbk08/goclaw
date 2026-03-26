@@ -160,7 +160,7 @@ export function CronFormDialog({ open, onOpenChange, onSubmit }: CronFormDialogP
                       : 'border-border text-text-secondary hover:bg-surface-tertiary/30'
                   }`}
                 >
-                  {t(`create.${kind}`)}
+                  {t(`create.${kind === 'at' ? 'once' : kind}`)}
                 </button>
               ))}
             </div>
