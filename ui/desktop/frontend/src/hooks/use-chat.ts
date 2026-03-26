@@ -209,12 +209,18 @@ export function useChat() {
 
       addUserMessage(text)
 
-      // Upload files via HTTP, collect server paths for chat.send
+      // Resolve attached files to server paths for chat.send:
+      // - localPath files (pasted paths): pass directly, no upload needed
+      // - File objects (picker/drag/paste): upload via HTTP first
       let media: { path: string; filename: string }[] | undefined
       if (attachedFiles?.length) {
         const api = getApiClient()
         const uploads = await Promise.all(
           attachedFiles.map(async (af) => {
+            if (af.localPath) {
+              return { path: af.localPath, filename: af.name }
+            }
+            if (!af.file) return null
             try {
               const res = await api.uploadFile<{ path: string; mime_type: string; filename: string }>(
                 '/v1/media/upload', af.file,

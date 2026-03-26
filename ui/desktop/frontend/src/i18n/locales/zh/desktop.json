@@ -50,12 +50,12 @@
     "timezonePlaceholder": "Timezone selection coming soon."
   },
   "sidebar": {
-    "newChat": "New Chat",
-    "connected": "Connected",
-    "offline": "Offline",
-    "lightMode": "Light mode",
-    "darkMode": "Dark mode",
-    "settings": "Settings"
+    "newChat": "新建对话",
+    "connected": "已连接",
+    "offline": "离线",
+    "lightMode": "浅色模式",
+    "darkMode": "深色模式",
+    "settings": "设置"
   },
   "about": {
     "title": "GoClaw Lite",
@@ -105,9 +105,9 @@
     "emptyDescAgent": "提问、写作或探索想法。",
     "emptyDescNoAgent": "从侧边栏选择一个智能体开始。",
     "suggestions": [
-      "你能帮我做什么？",
-      "为我总结一些内容",
-      "帮我进行头脑风暴"
+      "今天有什么最新新闻？",
+      "讲一个笑话",
+      "AI时代的创意头脑风暴"
     ]
   },
   "activity": {

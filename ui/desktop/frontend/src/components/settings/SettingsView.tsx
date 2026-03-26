@@ -7,6 +7,8 @@ import { AgentList } from './agents/AgentList'
 import { McpServerList } from './mcp/McpServerList'
 import { SkillList } from './skills/SkillList'
 import { ToolList } from './tools/ToolList'
+import { CronList } from './cron/CronList'
+import { TraceList } from './traces/TraceList'
 
 export function SettingsView() {
   const settingsTab = useUiStore((s) => s.settingsTab)
@@ -52,6 +54,8 @@ function TabContent({ tab }: { tab: string }) {
     case 'mcp': return <McpServerList />
     case 'skills': return <SkillList />
     case 'tools': return <ToolList />
+    case 'cron': return <CronList />
+    case 'traces': return <TraceList />
     case 'about': return <AboutTab />
     default:
       return (

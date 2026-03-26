@@ -23,8 +23,8 @@ export function SidebarHeader() {
 
       {/* Section title + add button */}
       <div className="flex items-center justify-between px-1 pt-1">
-        <span className="text-[10px] uppercase tracking-wider text-text-muted font-medium">
-          {t('title', 'Agents')}
+        <span className="text-[10px] text-text-muted font-medium tracking-wide">
+          {t('title', 'Agents')} ({agents.length}/{MAX_AGENTS_LITE})
         </span>
         <button
           onClick={() => openSettings('agents')}

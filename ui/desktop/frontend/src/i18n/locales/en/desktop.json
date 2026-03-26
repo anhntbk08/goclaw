@@ -104,7 +104,7 @@
     "emptyTitleDefault": "Start a conversation",
     "emptyDescAgent": "Ask a question, write something, or explore ideas.",
     "emptyDescNoAgent": "Select an agent from the sidebar to begin.",
-    "suggestions": ["What can you help me with?", "Summarize something for me", "Help me brainstorm"]
+    "suggestions": ["What's the latest news today?", "Tell me a joke", "Brainstorm ideas for the AI era"]
   },
   "activity": {
     "thinking": "Thinking",

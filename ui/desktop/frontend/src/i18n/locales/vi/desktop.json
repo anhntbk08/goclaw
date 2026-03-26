@@ -50,7 +50,7 @@
     "timezonePlaceholder": "Timezone selection coming soon."
   },
   "sidebar": {
-    "newChat": "New Chat",
+    "newChat": "Trò chuyện mới",
     "connected": "Connected",
     "offline": "Offline",
     "lightMode": "Light mode",
@@ -105,9 +105,9 @@
     "emptyDescAgent": "Đặt câu hỏi, viết gì đó, hoặc khám phá ý tưởng.",
     "emptyDescNoAgent": "Chọn một agent từ thanh bên để bắt đầu.",
     "suggestions": [
-      "Bạn có thể giúp tôi gì?",
-      "Tóm tắt điều gì đó cho tôi",
-      "Giúp tôi động não"
+      "Tin tức mới nhất hôm nay có gì?",
+      "Kể một câu chuyện cười",
+      "Brainstorm các ideas thời đại AI"
     ]
   },
   "activity": {

@@ -29,7 +29,7 @@ export function SidebarFooter() {
         onClick={() => { createSession(); closeSettings() }}
         className="wails-no-drag w-full py-2 px-3 rounded-lg bg-accent text-white text-sm font-medium text-center hover:bg-accent-hover transition-colors"
       >
-        + {t('sidebar.newChat')}
+        {t('sidebar.newChat')}
       </button>
 
       <div className="flex items-center justify-between px-1">

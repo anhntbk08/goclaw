@@ -63,7 +63,7 @@ export function ChatCanvas() {
                 <p className="text-sm text-text-muted">{t('loading')}</p>
               </div>
             )}
-            {selectedAgent && !hasMessages && <EmptyState agentName={selectedAgent.name} />}
+            {selectedAgent && !hasMessages && <EmptyState agentName={selectedAgent.name} onSuggestion={handleSend} />}
 
             {messages.map((msg) => (
               <MessageBubble
@@ -93,8 +93,8 @@ export function ChatCanvas() {
   )
 }
 
-/** Empty state with logo and suggested prompts */
-function EmptyState({ agentName }: { agentName?: string }) {
+/** Empty state with logo and clickable suggested prompts */
+function EmptyState({ agentName, onSuggestion }: { agentName?: string; onSuggestion?: (text: string) => void }) {
   const { t } = useTranslation('desktop')
   const suggestions = t('chat.suggestions', { returnObjects: true }) as string[]
   return (
@@ -111,12 +111,13 @@ function EmptyState({ agentName }: { agentName?: string }) {
       {agentName && (
         <div className="flex flex-wrap justify-center gap-2">
           {suggestions.map((prompt) => (
-            <span
+            <button
               key={prompt}
-              className="text-xs text-text-secondary bg-surface-secondary border border-border rounded-full px-3 py-1.5 opacity-60"
+              onClick={() => onSuggestion?.(prompt)}
+              className="text-xs text-text-secondary bg-surface-secondary border border-border rounded-full px-3 py-1.5 hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
             >
               {prompt}
-            </span>
+            </button>
           ))}
         </div>
       )}

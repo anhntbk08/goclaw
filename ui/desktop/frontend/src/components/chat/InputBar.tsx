@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type DragEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
-/** A file queued for upload (local File object, not yet uploaded). */
+/** A file queued for upload or a direct filesystem path (desktop). */
 export interface AttachedFile {
   id: string
-  file: File
+  /** Browser File object — present for drag/drop and file picker uploads. */
+  file?: File
+  /** Direct filesystem path — present for pasted paths (desktop only, skip HTTP upload). */
+  localPath?: string
   name: string
-  /** Image thumbnail data URL (only for images). */
+  /** Image thumbnail data URL (only for browser File images). */
   preview?: string
 }
 
@@ -23,6 +26,13 @@ function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** Detect if text looks like one or more absolute file paths (one per line). */
+const FILE_PATH_RE = /^(\/[\w.\-/ ]+(?:\.\w+)?|[A-Z]:\\[\w.\-\\ ]+(?:\.\w+)?)$/
+
+function extractFilePaths(text: string): string[] {
+  return text.split('\n').map((l) => l.trim()).filter((l) => FILE_PATH_RE.test(l))
 }
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']
@@ -46,15 +56,26 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
 
     // Generate image previews
     for (const af of newFiles) {
-      if (IMAGE_TYPES.includes(af.file.type)) {
+      if (af.file && IMAGE_TYPES.includes(af.file.type)) {
+        const fileObj = af.file
         const reader = new FileReader()
         reader.onload = () => {
           setFiles((prev) => prev.map((f) => f.id === af.id ? { ...f, preview: reader.result as string } : f))
         }
-        reader.readAsDataURL(af.file)
+        reader.readAsDataURL(fileObj)
       }
     }
 
+    setFiles((prev) => [...prev, ...newFiles])
+  }, [])
+
+  /** Add files by filesystem path (desktop paste). */
+  const addLocalPaths = useCallback((paths: string[]) => {
+    const newFiles: AttachedFile[] = paths.map((p) => ({
+      id: crypto.randomUUID().slice(0, 8),
+      localPath: p,
+      name: p.split('/').pop() || p.split('\\').pop() || p,
+    }))
     setFiles((prev) => [...prev, ...newFiles])
   }, [])
 
@@ -86,6 +107,33 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }
+
+  // --- Paste: detect file paths ---
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // If clipboard has files (e.g. screenshot paste), handle as file upload
+    const items = e.clipboardData.items
+    const pastedFiles: File[] = []
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file') {
+        const f = items[i].getAsFile()
+        if (f) pastedFiles.push(f)
+      }
+    }
+    if (pastedFiles.length > 0) {
+      e.preventDefault()
+      addFiles(pastedFiles)
+      return
+    }
+
+    // Check if pasted text looks like file path(s)
+    const pasted = e.clipboardData.getData('text/plain')
+    const paths = extractFilePaths(pasted)
+    if (paths.length > 0) {
+      e.preventDefault()
+      addLocalPaths(paths)
+    }
+    // Otherwise, let default paste behavior handle it (normal text)
+  }, [addFiles, addLocalPaths])
 
   // --- Drag & drop ---
   const handleDragEnter = (e: DragEvent) => {
@@ -166,7 +214,7 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
                   </svg>
                 )}
                 <span className="truncate text-text-secondary">{af.name}</span>
-                <span className="text-text-muted shrink-0">({formatSize(af.file.size)})</span>
+                {af.file && <span className="text-text-muted shrink-0">({formatSize(af.file.size)})</span>}
                 <button
                   onClick={() => removeFile(af.id)}
                   className="ml-auto shrink-0 text-text-muted hover:text-error transition-colors opacity-0 group-hover:opacity-100"
@@ -204,6 +252,7 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
             value={text}
             onChange={(e) => { setText(e.target.value); handleInput() }}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={placeholder ?? t('sendMessage')}
             disabled={disabled}
             rows={1}
