@@ -10,6 +10,7 @@ export function SidebarHeader() {
       <div className="flex items-center gap-2 px-1">
         <img src="/goclaw-icon.svg" alt="GoClaw" className="h-5 w-5" />
         <span className="text-sm font-semibold text-text-primary">GoClaw</span>
+        <span className="text-[10px] text-text-muted font-normal">Lite</span>
       </div>
 
       {/* Agent selector */}

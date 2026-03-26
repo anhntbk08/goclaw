@@ -11,6 +11,9 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 function AppReady() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
+  const openSettings = useUiStore((s) => s.openSettings)
+  const closeSettings = useUiStore((s) => s.closeSettings)
+  const activeView = useUiStore((s) => s.activeView)
   const { createSession } = useSessions()
 
   useEffect(() => {
@@ -18,10 +21,12 @@ function AppReady() {
       const mod = e.metaKey || e.ctrlKey
       if (mod && e.key === 'b') { e.preventDefault(); toggleSidebar() }
       if (mod && e.key === 'n') { e.preventDefault(); createSession() }
+      if (mod && e.key === ',') { e.preventDefault(); openSettings() }
+      if (e.key === 'Escape' && activeView === 'settings') { closeSettings() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleSidebar, createSession])
+  }, [toggleSidebar, createSession, openSettings, closeSettings, activeView])
 
   return (
     <AppShell>

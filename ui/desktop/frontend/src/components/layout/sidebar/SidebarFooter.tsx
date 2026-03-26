@@ -5,7 +5,7 @@ import { getWsClient } from '../../../lib/ws'
 
 export function SidebarFooter() {
   const { createSession } = useSessions()
-  const resetOnboarding = useUiStore((s) => s.resetOnboarding)
+  const openSettings = useUiStore((s) => s.openSettings)
   const toggleTheme = useUiStore((s) => s.toggleTheme)
   const theme = useUiStore((s) => s.theme)
 
@@ -53,9 +53,9 @@ export function SidebarFooter() {
 
           {/* Settings */}
           <button
-            onClick={resetOnboarding}
+            onClick={() => openSettings()}
             className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-surface-tertiary transition-colors"
-            title="Run Setup Wizard"
+            title="Settings (⌘,)"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />

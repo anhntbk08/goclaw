@@ -1,16 +1,25 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type AppView = 'chat' | 'settings'
+export type SettingsTab = 'appearance' | 'providers' | 'agents' | 'mcp' | 'skills' | 'tools' | 'cron' | 'traces' | 'about'
+
 interface UiState {
   theme: 'dark' | 'light'
   sidebarOpen: boolean
   sidebarWidth: number
   onboarded: boolean
+  activeView: AppView
+  settingsTab: SettingsTab
   toggleTheme: () => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
   completeOnboarding: () => void
   resetOnboarding: () => void
+  setActiveView: (view: AppView) => void
+  setSettingsTab: (tab: SettingsTab) => void
+  openSettings: (tab?: SettingsTab) => void
+  closeSettings: () => void
 }
 
 export const useUiStore = create<UiState>()(
@@ -20,6 +29,8 @@ export const useUiStore = create<UiState>()(
       sidebarOpen: true,
       sidebarWidth: 260,
       onboarded: false,
+      activeView: 'chat',
+      settingsTab: 'appearance',
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       toggleSidebar: () =>
@@ -30,6 +41,14 @@ export const useUiStore = create<UiState>()(
         set({ onboarded: true }),
       resetOnboarding: () =>
         set({ onboarded: false }),
+      setActiveView: (view) =>
+        set({ activeView: view }),
+      setSettingsTab: (tab) =>
+        set({ settingsTab: tab }),
+      openSettings: (tab) =>
+        set((s) => ({ activeView: 'settings', settingsTab: tab ?? s.settingsTab })),
+      closeSettings: () =>
+        set({ activeView: 'chat' }),
     }),
     {
       name: 'goclaw-ui',
@@ -38,6 +57,7 @@ export const useUiStore = create<UiState>()(
         sidebarOpen: s.sidebarOpen,
         sidebarWidth: s.sidebarWidth,
         onboarded: s.onboarded,
+        settingsTab: s.settingsTab,
       }),
     }
   )

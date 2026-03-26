@@ -1,12 +1,14 @@
 import { useUiStore } from '../../stores/ui-store'
 import { Sidebar } from './Sidebar'
+import { SettingsView } from '../settings/SettingsView'
 
 interface AppShellProps {
-  children: React.ReactNode
+  children: React.ReactNode // ChatCanvas
 }
 
 export function AppShell({ children }: AppShellProps) {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
+  const activeView = useUiStore((s) => s.activeView)
 
   return (
     <div className="h-dvh flex bg-surface-primary overflow-hidden">
@@ -20,9 +22,9 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       )}
 
-      {/* Main chat panel */}
+      {/* Main panel — chat or settings */}
       <div className="floating-panel m-3 ml-2 flex-1 flex flex-col min-w-0">
-        {children}
+        {activeView === 'settings' ? <SettingsView /> : children}
       </div>
     </div>
   )

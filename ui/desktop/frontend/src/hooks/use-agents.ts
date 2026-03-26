@@ -24,7 +24,7 @@ export function useAgents() {
         key: a.agent_key,
         name: a.display_name || a.agent_key,
         model: a.model ?? 'unknown',
-        status: 'idle' as const,
+        status: 'online' as const,
       }))
 
       setAgents(mapped)
