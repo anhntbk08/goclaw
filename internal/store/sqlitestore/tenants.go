@@ -106,9 +106,12 @@ func (s *SQLiteTenantStore) GetTenantUser(ctx context.Context, id uuid.UUID) (*s
 		`SELECT id, tenant_id, user_id, display_name, role, metadata, created_at, updated_at
 		 FROM tenant_users WHERE id = ?`, id)
 	var d store.TenantUserData
-	if err := row.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, &d.CreatedAt, &d.UpdatedAt); err != nil {
+	createdAt, updatedAt := scanTimePair()
+	if err := row.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, createdAt, updatedAt); err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	return &d, nil
 }
 
@@ -129,9 +132,12 @@ func (s *SQLiteTenantStore) CreateTenantUserReturning(ctx context.Context, tenan
 		store.GenNewID(), tenantID, userID, dn, role, now, now,
 	)
 	var d store.TenantUserData
-	if err := row.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, &d.CreatedAt, &d.UpdatedAt); err != nil {
+	createdAt, updatedAt := scanTimePair()
+	if err := row.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, createdAt, updatedAt); err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	return &d, nil
 }
 
@@ -198,17 +204,23 @@ func (s *SQLiteTenantStore) ResolveUserTenant(ctx context.Context, userID string
 
 func scanTenantRow(row *sql.Row) (*store.TenantData, error) {
 	var d store.TenantData
-	if err := row.Scan(&d.ID, &d.Name, &d.Slug, &d.Status, &d.Settings, &d.CreatedAt, &d.UpdatedAt); err != nil {
+	createdAt, updatedAt := scanTimePair()
+	if err := row.Scan(&d.ID, &d.Name, &d.Slug, &d.Status, &d.Settings, createdAt, updatedAt); err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	return &d, nil
 }
 
 func scanTenantRowScanner(row interface{ Scan(...any) error }) (*store.TenantData, error) {
 	var d store.TenantData
-	if err := row.Scan(&d.ID, &d.Name, &d.Slug, &d.Status, &d.Settings, &d.CreatedAt, &d.UpdatedAt); err != nil {
+	createdAt, updatedAt := scanTimePair()
+	if err := row.Scan(&d.ID, &d.Name, &d.Slug, &d.Status, &d.Settings, createdAt, updatedAt); err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	return &d, nil
 }
 
@@ -216,9 +228,12 @@ func scanTenantUserRows(rows *sql.Rows) ([]store.TenantUserData, error) {
 	var result []store.TenantUserData
 	for rows.Next() {
 		var d store.TenantUserData
-		if err := rows.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		createdAt, updatedAt := scanTimePair()
+		if err := rows.Scan(&d.ID, &d.TenantID, &d.UserID, &d.DisplayName, &d.Role, &d.Metadata, createdAt, updatedAt); err != nil {
 			return nil, err
 		}
+		d.CreatedAt = createdAt.Time
+		d.UpdatedAt = updatedAt.Time
 		result = append(result, d)
 	}
 	return result, rows.Err()

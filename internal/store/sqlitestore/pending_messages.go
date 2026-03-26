@@ -72,9 +72,12 @@ func (s *SQLitePendingMessageStore) ListByKey(ctx context.Context, channelName, 
 	var result []store.PendingMessage
 	for rows.Next() {
 		var m store.PendingMessage
-		if err := rows.Scan(&m.ID, &m.ChannelName, &m.HistoryKey, &m.Sender, &m.SenderID, &m.Body, &m.PlatformMsgID, &m.IsSummary, &m.CreatedAt, &m.UpdatedAt); err != nil {
+		createdAt, updatedAt := scanTimePair()
+		if err := rows.Scan(&m.ID, &m.ChannelName, &m.HistoryKey, &m.Sender, &m.SenderID, &m.Body, &m.PlatformMsgID, &m.IsSummary, createdAt, updatedAt); err != nil {
 			return nil, err
 		}
+		m.CreatedAt = createdAt.Time
+		m.UpdatedAt = updatedAt.Time
 		result = append(result, m)
 	}
 	return result, rows.Err()

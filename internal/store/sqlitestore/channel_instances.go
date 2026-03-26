@@ -103,15 +103,18 @@ func (s *SQLiteChannelInstanceStore) scanInstance(row *sql.Row) (*store.ChannelI
 	var displayName *string
 	var creds []byte
 	var config *[]byte
+	createdAt, updatedAt := scanTimePair()
 
 	err := row.Scan(
 		&inst.ID, &inst.Name, &displayName, &inst.ChannelType, &inst.AgentID,
 		&creds, &config,
-		&inst.Enabled, &inst.CreatedBy, &inst.CreatedAt, &inst.UpdatedAt, &inst.TenantID,
+		&inst.Enabled, &inst.CreatedBy, createdAt, updatedAt, &inst.TenantID,
 	)
 	if err != nil {
 		return nil, err
 	}
+	inst.CreatedAt = createdAt.Time
+	inst.UpdatedAt = updatedAt.Time
 
 	inst.DisplayName = derefStr(displayName)
 	if config != nil {
@@ -140,14 +143,17 @@ func (s *SQLiteChannelInstanceStore) scanInstances(rows *sql.Rows) ([]store.Chan
 		var displayName *string
 		var creds []byte
 		var config *[]byte
+		createdAt, updatedAt := scanTimePair()
 
 		if err := rows.Scan(
 			&inst.ID, &inst.Name, &displayName, &inst.ChannelType, &inst.AgentID,
 			&creds, &config,
-			&inst.Enabled, &inst.CreatedBy, &inst.CreatedAt, &inst.UpdatedAt, &inst.TenantID,
+			&inst.Enabled, &inst.CreatedBy, createdAt, updatedAt, &inst.TenantID,
 		); err != nil {
 			continue
 		}
+		inst.CreatedAt = createdAt.Time
+		inst.UpdatedAt = updatedAt.Time
 
 		inst.DisplayName = derefStr(displayName)
 		if config != nil {

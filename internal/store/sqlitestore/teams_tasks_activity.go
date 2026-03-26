@@ -91,9 +91,11 @@ func scanTaskCommentRows(rows *sql.Rows) ([]store.TeamTaskCommentData, error) {
 		var c store.TeamTaskCommentData
 		var agentID *uuid.UUID
 		var userID sql.NullString
-		if err := rows.Scan(&c.ID, &c.TaskID, &agentID, &userID, &c.Content, &c.CommentType, &c.CreatedAt, &c.AgentKey); err != nil {
+		var createdAt sqliteTime
+		if err := rows.Scan(&c.ID, &c.TaskID, &agentID, &userID, &c.Content, &c.CommentType, &createdAt, &c.AgentKey); err != nil {
 			return nil, err
 		}
+		c.CreatedAt = createdAt.Time
 		c.AgentID = agentID
 		if userID.Valid {
 			c.UserID = userID.String
@@ -159,9 +161,11 @@ func scanTaskEventRows(rows *sql.Rows) ([]store.TeamTaskEventData, error) {
 	for rows.Next() {
 		var e store.TeamTaskEventData
 		var data json.RawMessage
-		if err := rows.Scan(&e.ID, &e.TaskID, &e.EventType, &e.ActorType, &e.ActorID, &data, &e.CreatedAt); err != nil {
+		var createdAt sqliteTime
+		if err := rows.Scan(&e.ID, &e.TaskID, &e.EventType, &e.ActorType, &e.ActorID, &data, &createdAt); err != nil {
 			return nil, err
 		}
+		e.CreatedAt = createdAt.Time
 		e.Data = data
 		events = append(events, e)
 	}
@@ -205,16 +209,18 @@ func (s *SQLiteTeamStore) GetAttachment(ctx context.Context, attachmentID uuid.U
 	var agentID *uuid.UUID
 	var senderID sql.NullString
 	var metadata json.RawMessage
+	var createdAt sqliteTime
 	tid := tenantIDForInsert(ctx)
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, task_id, team_id, chat_id, path, file_size, mime_type,
 		        created_by_agent_id, created_by_sender_id, metadata, created_at
 		 FROM team_task_attachments WHERE id = ? AND tenant_id = ?`, attachmentID, tid,
 	).Scan(&a.ID, &a.TaskID, &a.TeamID, &a.ChatID, &a.Path, &a.FileSize, &a.MimeType,
-		&agentID, &senderID, &metadata, &a.CreatedAt)
+		&agentID, &senderID, &metadata, &createdAt)
 	if err != nil {
 		return nil, err
 	}
+	a.CreatedAt = createdAt.Time
 	a.CreatedByAgentID = agentID
 	if senderID.Valid {
 		a.CreatedBySenderID = senderID.String
@@ -242,10 +248,12 @@ func (s *SQLiteTeamStore) ListTaskAttachments(ctx context.Context, taskID uuid.U
 		var agentID *uuid.UUID
 		var senderID sql.NullString
 		var metadata json.RawMessage
+		var createdAt sqliteTime
 		if err := rows.Scan(&a.ID, &a.TaskID, &a.TeamID, &a.ChatID, &a.Path, &a.FileSize, &a.MimeType,
-			&agentID, &senderID, &metadata, &a.CreatedAt); err != nil {
+			&agentID, &senderID, &metadata, &createdAt); err != nil {
 			return nil, err
 		}
+		a.CreatedAt = createdAt.Time
 		a.CreatedByAgentID = agentID
 		if senderID.Valid {
 			a.CreatedBySenderID = senderID.String

@@ -63,15 +63,18 @@ func (s *SQLiteTracingStore) GetTraceSpans(ctx context.Context, traceID uuid.UUI
 		var endTime *time.Time
 		var durationMS, inputTokens, outputTokens *int
 		var modelParams, metadata *[]byte
+		var startTime, createdAt sqliteTime
 
 		if err := rows.Scan(&d.ID, &d.TraceID, &parentSpanID, &agentID, &d.SpanType, &name,
-			&d.StartTime, &endTime, &durationMS, &status, &errStr, &level,
+			&startTime, &endTime, &durationMS, &status, &errStr, &level,
 			&model, &provider, &inputTokens, &outputTokens, &finishReason,
 			&modelParams, &toolName, &toolCallID, &inputPreview, &outputPreview,
-			&metadata, &teamID, &d.CreatedAt); err != nil {
+			&metadata, &teamID, &createdAt); err != nil {
 			slog.Warn("tracing: span scan failed", "trace_id", traceID, "error", err)
 			continue
 		}
+		d.StartTime = startTime.Time
+		d.CreatedAt = createdAt.Time
 
 		d.ParentSpanID = parentSpanID
 		d.AgentID = agentID

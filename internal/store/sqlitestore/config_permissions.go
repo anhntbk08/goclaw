@@ -226,11 +226,14 @@ func scanConfigPermissions(rows *sql.Rows) ([]store.ConfigPermission, error) {
 	for rows.Next() {
 		var p store.ConfigPermission
 		var metadata []byte
+		createdAt, updatedAt := scanTimePair()
 		if err := rows.Scan(
-			&p.ID, &p.AgentID, &p.Scope, &p.ConfigType, &p.UserID, &p.Permission, &p.GrantedBy, &metadata, &p.CreatedAt, &p.UpdatedAt,
+			&p.ID, &p.AgentID, &p.Scope, &p.ConfigType, &p.UserID, &p.Permission, &p.GrantedBy, &metadata, createdAt, updatedAt,
 		); err != nil {
 			return nil, err
 		}
+		p.CreatedAt = createdAt.Time
+		p.UpdatedAt = updatedAt.Time
 		p.Metadata = metadata
 		perms = append(perms, p)
 	}

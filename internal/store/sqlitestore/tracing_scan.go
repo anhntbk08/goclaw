@@ -20,14 +20,17 @@ func scanTraceRow(row *sql.Row) (*store.TraceData, error) {
 	var durationMS *int
 	var metadata *[]byte
 	var tags []byte
+	var startTime, createdAt sqliteTime
 
-	err := row.Scan(&d.ID, &parentTraceID, &agentID, &userID, &sessionKey, &runID, &d.StartTime, &endTime,
+	err := row.Scan(&d.ID, &parentTraceID, &agentID, &userID, &sessionKey, &runID, &startTime, &endTime,
 		&durationMS, &name, &channel, &inputPreview, &outputPreview,
 		&d.TotalInputTokens, &d.TotalOutputTokens, &d.TotalCost, &d.SpanCount, &d.LLMCallCount, &d.ToolCallCount,
-		&d.Status, &errStr, &metadata, &tags, &teamID, &d.CreatedAt)
+		&d.Status, &errStr, &metadata, &tags, &teamID, &createdAt)
 	if err != nil {
 		return nil, err
 	}
+	d.StartTime = startTime.Time
+	d.CreatedAt = createdAt.Time
 	applyTraceNullables(&d, parentTraceID, agentID, teamID, userID, sessionKey, runID, name, channel, inputPreview, outputPreview, errStr, endTime, durationMS, metadata, tags)
 	return &d, nil
 }
@@ -42,14 +45,17 @@ func scanTraceRows(rows *sql.Rows) ([]store.TraceData, error) {
 		var durationMS *int
 		var metadata *[]byte
 		var tags []byte
+		var startTime, createdAt sqliteTime
 
-		if err := rows.Scan(&d.ID, &parentTraceID, &agentID, &userID, &sessionKey, &runID, &d.StartTime, &endTime,
+		if err := rows.Scan(&d.ID, &parentTraceID, &agentID, &userID, &sessionKey, &runID, &startTime, &endTime,
 			&durationMS, &name, &channel, &inputPreview, &outputPreview,
 			&d.TotalInputTokens, &d.TotalOutputTokens, &d.TotalCost, &d.SpanCount, &d.LLMCallCount, &d.ToolCallCount,
-			&d.Status, &errStr, &metadata, &tags, &teamID, &d.CreatedAt); err != nil {
+			&d.Status, &errStr, &metadata, &tags, &teamID, &createdAt); err != nil {
 			slog.Warn("tracing: trace scan failed", "error", err)
 			continue
 		}
+		d.StartTime = startTime.Time
+		d.CreatedAt = createdAt.Time
 		applyTraceNullables(&d, parentTraceID, agentID, teamID, userID, sessionKey, runID, name, channel, inputPreview, outputPreview, errStr, endTime, durationMS, metadata, tags)
 		result = append(result, d)
 	}

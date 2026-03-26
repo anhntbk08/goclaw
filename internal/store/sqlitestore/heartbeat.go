@@ -66,16 +66,26 @@ func scanHeartbeat(row interface {
 }) (*store.AgentHeartbeat, error) {
 	var hb store.AgentHeartbeat
 	var metadata []byte
+	var nextRunAt, lastRunAt nullSqliteTime
+	createdAt, updatedAt := scanTimePair()
 	err := row.Scan(
 		&hb.ID, &hb.AgentID, &hb.Enabled, &hb.IntervalSec, &hb.Prompt, &hb.ProviderID, &hb.Model,
 		&hb.IsolatedSession, &hb.LightContext, &hb.AckMaxChars, &hb.MaxRetries,
 		&hb.ActiveHoursStart, &hb.ActiveHoursEnd, &hb.Timezone,
 		&hb.Channel, &hb.ChatID,
-		&hb.NextRunAt, &hb.LastRunAt, &hb.LastStatus, &hb.LastError,
-		&hb.RunCount, &hb.SuppressCount, &metadata, &hb.CreatedAt, &hb.UpdatedAt,
+		&nextRunAt, &lastRunAt, &hb.LastStatus, &hb.LastError,
+		&hb.RunCount, &hb.SuppressCount, &metadata, createdAt, updatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+	hb.CreatedAt = createdAt.Time
+	hb.UpdatedAt = updatedAt.Time
+	if nextRunAt.Valid {
+		hb.NextRunAt = &nextRunAt.Time
+	}
+	if lastRunAt.Valid {
+		hb.LastRunAt = &lastRunAt.Time
 	}
 	hb.Metadata = metadata
 	return &hb, nil
@@ -94,6 +104,7 @@ func (s *SQLiteHeartbeatStore) Upsert(ctx context.Context, hb *store.AgentHeartb
 		meta = json.RawMessage("{}")
 	}
 	now := time.Now().UTC()
+	createdAt, updatedAt := scanTimePair()
 	err := s.db.QueryRowContext(ctx,
 		`INSERT INTO agent_heartbeats
 		        (agent_id, enabled, interval_sec, prompt, provider_id, model,
@@ -124,10 +135,12 @@ func (s *SQLiteHeartbeatStore) Upsert(ctx context.Context, hb *store.AgentHeartb
 		hb.IsolatedSession, hb.LightContext, hb.AckMaxChars, hb.MaxRetries,
 		hb.ActiveHoursStart, hb.ActiveHoursEnd, hb.Timezone,
 		hb.Channel, hb.ChatID, hb.NextRunAt, meta, now, now,
-	).Scan(&hb.ID, &hb.CreatedAt, &hb.UpdatedAt)
+	).Scan(&hb.ID, createdAt, updatedAt)
 	if err != nil {
 		return err
 	}
+	hb.CreatedAt = createdAt.Time
+	hb.UpdatedAt = updatedAt.Time
 	s.InvalidateCache()
 	return nil
 }
@@ -250,12 +263,15 @@ func (s *SQLiteHeartbeatStore) ListLogs(ctx context.Context, agentID uuid.UUID, 
 	for rows.Next() {
 		var l store.HeartbeatRunLog
 		var metadata []byte
+		var ranAt, createdAt sqliteTime
 		if err := rows.Scan(
 			&l.ID, &l.HeartbeatID, &l.AgentID, &l.Status, &l.Summary, &l.Error,
-			&l.DurationMS, &l.InputTokens, &l.OutputTokens, &l.SkipReason, &metadata, &l.RanAt, &l.CreatedAt,
+			&l.DurationMS, &l.InputTokens, &l.OutputTokens, &l.SkipReason, &metadata, &ranAt, &createdAt,
 		); err != nil {
 			return nil, 0, err
 		}
+		l.RanAt = ranAt.Time
+		l.CreatedAt = createdAt.Time
 		l.Metadata = metadata
 		logs = append(logs, l)
 	}

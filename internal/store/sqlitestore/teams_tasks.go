@@ -464,9 +464,10 @@ func scanTaskRowsJoined(rows *sql.Rows) ([]store.TeamTaskData, error) {
 		var blockedByJSON []byte
 		var assigneeUserID, chatID, progressStep, identifier string
 		var metadataJSON []byte
-		var lockedAt, lockExpiresAt, followupAt *time.Time
+		var lockedAt, lockExpiresAt, followupAt nullSqliteTime
 		var followupCount, followupMax int
 		var followupMessage, followupChannel, followupChatID string
+		createdAt, updatedAt := scanTimePair()
 		if err := rows.Scan(
 			&d.ID, &d.TeamID, &d.Subject, &desc, &d.Status,
 			&ownerID, &blockedByJSON, &d.Priority, &result,
@@ -475,12 +476,14 @@ func scanTaskRowsJoined(rows *sql.Rows) ([]store.TeamTaskData, error) {
 			&chatID, &metadataJSON, &lockedAt, &lockExpiresAt, &d.ProgressPercent, &progressStep,
 			&followupAt, &followupCount, &followupMax, &followupMessage, &followupChannel, &followupChatID,
 			&d.CommentCount, &d.AttachmentCount,
-			&d.CreatedAt, &d.UpdatedAt,
+			createdAt, updatedAt,
 			&d.OwnerAgentKey,
 			&d.CreatedByAgentKey,
 		); err != nil {
 			return nil, err
 		}
+		d.CreatedAt = createdAt.Time
+		d.UpdatedAt = updatedAt.Time
 		if desc.Valid {
 			d.Description = desc.String
 		}
@@ -508,10 +511,16 @@ func scanTaskRowsJoined(rows *sql.Rows) ([]store.TeamTaskData, error) {
 		if len(metadataJSON) > 0 {
 			_ = json.Unmarshal(metadataJSON, &d.Metadata)
 		}
-		d.LockedAt = lockedAt
-		d.LockExpiresAt = lockExpiresAt
+		if lockedAt.Valid {
+			d.LockedAt = &lockedAt.Time
+		}
+		if lockExpiresAt.Valid {
+			d.LockExpiresAt = &lockExpiresAt.Time
+		}
 		d.ProgressStep = progressStep
-		d.FollowupAt = followupAt
+		if followupAt.Valid {
+			d.FollowupAt = &followupAt.Time
+		}
 		d.FollowupCount = followupCount
 		d.FollowupMax = followupMax
 		d.FollowupMessage = followupMessage

@@ -61,9 +61,11 @@ func (s *SQLiteActivityStore) List(ctx context.Context, opts store.ActivityListO
 	var result []store.ActivityLog
 	for rows.Next() {
 		var a store.ActivityLog
-		if err := rows.Scan(&a.ID, &a.ActorType, &a.ActorID, &a.Action, &a.EntityType, &a.EntityID, &a.Details, &a.IPAddress, &a.CreatedAt); err != nil {
+		var createdAt sqliteTime
+		if err := rows.Scan(&a.ID, &a.ActorType, &a.ActorID, &a.Action, &a.EntityType, &a.EntityID, &a.Details, &a.IPAddress, &createdAt); err != nil {
 			return nil, err
 		}
+		a.CreatedAt = createdAt.Time
 		result = append(result, a)
 	}
 	return result, rows.Err()

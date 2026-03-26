@@ -54,13 +54,23 @@ func (s *SQLiteAPIKeyStore) GetByHash(ctx context.Context, keyHash string) (*sto
 	var ownerID *string
 	var tenantID *uuid.UUID
 	var scopesRaw []byte
+	var expiresAt, lastUsedAt nullSqliteTime
+	createdAt, updatedAt := scanTimePair()
 	err := row.Scan(
 		&k.ID, &k.Name, &k.Prefix, &k.KeyHash, &scopesRaw,
-		&ownerID, &tenantID, &k.ExpiresAt, &k.LastUsedAt, &k.Revoked, &createdBy,
-		&k.CreatedAt, &k.UpdatedAt,
+		&ownerID, &tenantID, &expiresAt, &lastUsedAt, &k.Revoked, &createdBy,
+		createdAt, updatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+	k.CreatedAt = createdAt.Time
+	k.UpdatedAt = updatedAt.Time
+	if expiresAt.Valid {
+		k.ExpiresAt = &expiresAt.Time
+	}
+	if lastUsedAt.Valid {
+		k.LastUsedAt = &lastUsedAt.Time
 	}
 	scanJSONStringArray(scopesRaw, &k.Scopes)
 	if createdBy != nil {
@@ -116,12 +126,22 @@ func (s *SQLiteAPIKeyStore) List(ctx context.Context, ownerID string) ([]store.A
 		var oID *string
 		var tID *uuid.UUID
 		var scopesRaw []byte
+		var expiresAt, lastUsedAt nullSqliteTime
+		createdAt, updatedAt := scanTimePair()
 		if err := rows.Scan(
 			&k.ID, &k.Name, &k.Prefix, &scopesRaw,
-			&oID, &tID, &k.ExpiresAt, &k.LastUsedAt, &k.Revoked, &createdBy,
-			&k.CreatedAt, &k.UpdatedAt,
+			&oID, &tID, &expiresAt, &lastUsedAt, &k.Revoked, &createdBy,
+			createdAt, updatedAt,
 		); err != nil {
 			return nil, err
+		}
+		k.CreatedAt = createdAt.Time
+		k.UpdatedAt = updatedAt.Time
+		if expiresAt.Valid {
+			k.ExpiresAt = &expiresAt.Time
+		}
+		if lastUsedAt.Valid {
+			k.LastUsedAt = &lastUsedAt.Time
 		}
 		scanJSONStringArray(scopesRaw, &k.Scopes)
 		if createdBy != nil {

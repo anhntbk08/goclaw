@@ -64,9 +64,11 @@ func (s *SQLiteAgentStore) ListShares(ctx context.Context, agentID uuid.UUID) ([
 	var result []store.AgentShareData
 	for rows.Next() {
 		var d store.AgentShareData
-		if err := rows.Scan(&d.ID, &d.AgentID, &d.UserID, &d.Role, &d.GrantedBy, &d.CreatedAt); err != nil {
+		var createdAt sqliteTime
+		if err := rows.Scan(&d.ID, &d.AgentID, &d.UserID, &d.Role, &d.GrantedBy, &createdAt); err != nil {
 			continue
 		}
+		d.CreatedAt = createdAt.Time
 		result = append(result, d)
 	}
 	return result, rows.Err()

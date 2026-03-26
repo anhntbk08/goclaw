@@ -19,8 +19,11 @@ export function useSessions() {
   const { sessions, activeSessionKey, setActiveSession, setSessions, removeSession } = useSessionStore()
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId)
 
+  // When agent changes, clear active session + chat, then fetch new sessions
   useEffect(() => {
     if (!ws || !selectedAgentId) return
+    setActiveSession(null)
+    useChatStore.getState().clear()
     let cancelled = false
     ws.call('sessions.list', { agentId: selectedAgentId, limit: 30 })
       .then((result: unknown) => {
@@ -37,7 +40,7 @@ export function useSessions() {
       })
       .catch(console.error)
     return () => { cancelled = true }
-  }, [ws, selectedAgentId, setSessions])
+  }, [ws, selectedAgentId, setSessions, setActiveSession])
 
   // "New Chat" just clears active session + chat.
   // Actual session is created by sendMessage on first message (auto-session-creation).

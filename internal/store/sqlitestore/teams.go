@@ -132,13 +132,16 @@ func (s *SQLiteTeamStore) ListTeams(ctx context.Context) ([]store.TeamData, erro
 	for rows.Next() {
 		var d store.TeamData
 		var desc sql.NullString
+		createdAt, updatedAt := scanTimePair()
 		if err := rows.Scan(
 			&d.ID, &d.Name, &d.LeadAgentID, &desc, &d.Status,
-			&d.Settings, &d.CreatedBy, &d.CreatedAt, &d.UpdatedAt,
+			&d.Settings, &d.CreatedBy, createdAt, updatedAt,
 			&d.LeadAgentKey, &d.LeadDisplayName,
 		); err != nil {
 			return nil, err
 		}
+		d.CreatedAt = createdAt.Time
+		d.UpdatedAt = updatedAt.Time
 		if desc.Valid {
 			d.Description = desc.String
 		}
@@ -167,9 +170,11 @@ func (s *SQLiteTeamStore) ListTeams(ctx context.Context) ([]store.TeamData, erro
 
 		for mRows.Next() {
 			var m store.TeamMemberData
-			if err := mRows.Scan(&m.TeamID, &m.AgentID, &m.Role, &m.JoinedAt, &m.AgentKey, &m.DisplayName, &m.Frontmatter, &m.Emoji); err != nil {
+			var joinedAt sqliteTime
+			if err := mRows.Scan(&m.TeamID, &m.AgentID, &m.Role, &joinedAt, &m.AgentKey, &m.DisplayName, &m.Frontmatter, &m.Emoji); err != nil {
 				return nil, err
 			}
+			m.JoinedAt = joinedAt.Time
 			if idx, ok := teamIndex[m.TeamID]; ok {
 				teams[idx].Members = append(teams[idx].Members, m)
 				teams[idx].MemberCount++
@@ -235,12 +240,14 @@ func (s *SQLiteTeamStore) ListMembers(ctx context.Context, teamID uuid.UUID) ([]
 	var members []store.TeamMemberData
 	for rows.Next() {
 		var d store.TeamMemberData
+		var joinedAt sqliteTime
 		if err := rows.Scan(
-			&d.TeamID, &d.AgentID, &d.Role, &d.JoinedAt,
+			&d.TeamID, &d.AgentID, &d.Role, &joinedAt,
 			&d.AgentKey, &d.DisplayName, &d.Frontmatter, &d.Emoji,
 		); err != nil {
 			return nil, err
 		}
+		d.JoinedAt = joinedAt.Time
 		members = append(members, d)
 	}
 	return members, rows.Err()
@@ -280,12 +287,14 @@ func (s *SQLiteTeamStore) ListIdleMembers(ctx context.Context, teamID uuid.UUID)
 	var members []store.TeamMemberData
 	for rows.Next() {
 		var d store.TeamMemberData
+		var joinedAt sqliteTime
 		if err := rows.Scan(
-			&d.TeamID, &d.AgentID, &d.Role, &d.JoinedAt,
+			&d.TeamID, &d.AgentID, &d.Role, &joinedAt,
 			&d.AgentKey, &d.DisplayName, &d.Frontmatter, &d.Emoji,
 		); err != nil {
 			return nil, err
 		}
+		d.JoinedAt = joinedAt.Time
 		members = append(members, d)
 	}
 	return members, rows.Err()
@@ -398,9 +407,11 @@ func (s *SQLiteTeamStore) ListTeamGrants(ctx context.Context, teamID uuid.UUID) 
 	var result []store.TeamUserGrant
 	for rows.Next() {
 		var g store.TeamUserGrant
-		if err := rows.Scan(&g.ID, &g.TeamID, &g.UserID, &g.Role, &g.GrantedBy, &g.CreatedAt); err != nil {
+		var createdAt sqliteTime
+		if err := rows.Scan(&g.ID, &g.TeamID, &g.UserID, &g.Role, &g.GrantedBy, &createdAt); err != nil {
 			return nil, err
 		}
+		g.CreatedAt = createdAt.Time
 		result = append(result, g)
 	}
 	return result, rows.Err()
@@ -433,12 +444,15 @@ func (s *SQLiteTeamStore) ListUserTeams(ctx context.Context, userID string) ([]s
 	for rows.Next() {
 		var d store.TeamData
 		var desc sql.NullString
+		createdAt, updatedAt := scanTimePair()
 		if err := rows.Scan(
 			&d.ID, &d.Name, &d.LeadAgentID, &desc, &d.Status,
-			&d.Settings, &d.CreatedBy, &d.CreatedAt, &d.UpdatedAt,
+			&d.Settings, &d.CreatedBy, createdAt, updatedAt,
 		); err != nil {
 			return nil, err
 		}
+		d.CreatedAt = createdAt.Time
+		d.UpdatedAt = updatedAt.Time
 		if desc.Valid {
 			d.Description = desc.String
 		}
@@ -474,13 +488,16 @@ func (s *SQLiteTeamStore) GetTeamUnscoped(ctx context.Context, id uuid.UUID) (*s
 func scanTeamRow(row *sql.Row) (*store.TeamData, error) {
 	var d store.TeamData
 	var desc sql.NullString
+	createdAt, updatedAt := scanTimePair()
 	err := row.Scan(
 		&d.ID, &d.Name, &d.LeadAgentID, &desc, &d.Status,
-		&d.Settings, &d.CreatedBy, &d.CreatedAt, &d.UpdatedAt,
+		&d.Settings, &d.CreatedBy, createdAt, updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	if desc.Valid {
 		d.Description = desc.String
 	}
