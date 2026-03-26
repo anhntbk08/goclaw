@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Combobox } from '../../common/Combobox'
+import { Switch } from '../../common/Switch'
 import { PROVIDER_TYPES, slugify } from '../../../constants/providers'
 import type { ProviderData, ProviderInput } from '../../../types/provider'
 
@@ -129,15 +130,10 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
         </div>
 
         {/* Enabled toggle */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-            className="rounded border-border accent-accent"
-          />
+        <div className="flex items-center gap-2">
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
           <span className="text-xs text-text-secondary">Enabled</span>
-        </label>
+        </div>
 
         {error && <p className="text-xs text-error">{error}</p>}
 

@@ -1,3 +1,5 @@
+import { Switch } from '../../common/Switch'
+
 interface EvolutionSectionProps {
   selfEvolve: boolean
   onSelfEvolveChange: (v: boolean) => void
@@ -19,15 +21,7 @@ export function EvolutionSection({ selfEvolve, onSelfEvolveChange }: EvolutionSe
             Agent updates its own IDENTITY.md based on interactions
           </p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={selfEvolve}
-            onChange={(e) => onSelfEvolveChange(e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-9 h-5 bg-surface-tertiary peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent" />
-        </label>
+        <Switch checked={selfEvolve} onCheckedChange={onSelfEvolveChange} />
       </div>
 
       {selfEvolve && (

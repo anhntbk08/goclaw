@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Combobox } from '../../common/Combobox'
 import { useProviders } from '../../../hooks/use-providers'
 import { getApiClient } from '../../../lib/api'
+import { Switch } from '../../common/Switch'
 import { slugify } from '../../../constants/providers'
 import type { AgentData, AgentInput } from '../../../types/agent'
 
@@ -243,10 +244,10 @@ export function AgentFormDialog({ open, onOpenChange, agent, onSubmit }: AgentFo
         )}
 
         {/* Default toggle */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="rounded border-border accent-accent" />
+        <div className="flex items-center gap-2">
+          <Switch checked={isDefault} onCheckedChange={setIsDefault} />
           <span className="text-xs text-text-secondary">Default agent</span>
-        </label>
+        </div>
 
         {error && <p className="text-xs text-error">{error}</p>}
 

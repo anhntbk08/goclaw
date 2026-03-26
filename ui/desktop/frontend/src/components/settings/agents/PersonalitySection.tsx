@@ -1,3 +1,11 @@
+import { Switch } from '../../common/Switch'
+import { Combobox } from '../../common/Combobox'
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'idle', label: 'Idle' },
+]
+
 interface PersonalitySectionProps {
   emoji: string
   displayName: string
@@ -68,26 +76,13 @@ export function PersonalitySection({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs font-medium text-text-secondary">Status</label>
-          <select
-            value={status}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2 text-base md:text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-          >
-            <option value="active">Active</option>
-            <option value="idle">Idle</option>
-            <option value="summon_failed" disabled>Summon Failed</option>
-          </select>
+          <Combobox value={status} onChange={onStatusChange} options={STATUS_OPTIONS} placeholder="Select status..." />
         </div>
         <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isDefault}
-              onChange={(e) => onIsDefaultChange(e.target.checked)}
-              className="rounded border-border accent-accent"
-            />
+          <div className="flex items-center gap-2">
+            <Switch checked={isDefault} onCheckedChange={onIsDefaultChange} />
             <span className="text-xs text-text-secondary">Default agent</span>
-          </label>
+          </div>
         </div>
       </div>
     </div>
