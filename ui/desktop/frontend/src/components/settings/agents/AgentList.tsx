@@ -1,50 +1,53 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useAgentCrud } from '../../../hooks/use-agent-crud'
 import { useAgentStore } from '../../../stores/agent-store'
 import { AgentCard } from './AgentCard'
 import { AgentFormDialog } from './AgentFormDialog'
+import { AgentDetailPanel } from './AgentDetailPanel'
 import { ConfirmDeleteDialog } from '../../common/ConfirmDeleteDialog'
 import { SummoningModal } from '../../onboarding/SummoningModal'
 import type { AgentData, AgentInput } from '../../../types/agent'
 
 export function AgentList() {
   const { agents, loading, atLimit, createAgent, updateAgent, deleteAgent, resummonAgent, fetchAgents } = useAgentCrud()
-  const refreshSidebar = useAgentStore((s) => s.setAgents)
+  const setStoreAgents = useAgentStore((s) => s.setAgents)
 
   const [formOpen, setFormOpen] = useState(false)
-  const [editingAgent, setEditingAgent] = useState<AgentData | null>(null)
+  const [detailAgent, setDetailAgent] = useState<AgentData | null>(null)
   const [deletingAgent, setDeletingAgent] = useState<AgentData | null>(null)
   const [summoningAgent, setSummoningAgent] = useState<{ id: string; name: string } | null>(null)
 
-  const handleCreate = () => {
-    if (atLimit) return
-    setEditingAgent(null)
-    setFormOpen(true)
-  }
+  const refreshSidebar = useCallback(() => {
+    setStoreAgents(agents.map((a) => ({
+      id: a.id,
+      key: a.agent_key,
+      name: a.display_name || a.agent_key,
+      model: a.model ?? 'unknown',
+      status: 'online' as const,
+    })))
+  }, [agents, setStoreAgents])
 
-  const handleEdit = (agent: AgentData) => {
-    setEditingAgent(agent)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = async (input: AgentInput) => {
-    if (editingAgent) {
-      await updateAgent(editingAgent.id, input)
-    } else {
-      const created = await createAgent(input)
-      // Show summoning modal if agent is summoning
-      if (created.status === 'summoning') {
-        setSummoningAgent({ id: created.id, name: created.display_name || created.agent_key })
-      }
+  const handleCreate = async (input: AgentInput) => {
+    const created = await createAgent(input)
+    if (created.status === 'summoning') {
+      setSummoningAgent({ id: created.id, name: created.display_name || created.agent_key })
     }
-    refreshSidebarAgents()
+    refreshSidebar()
+    return created
+  }
+
+  const handleSave = async (id: string, updates: Partial<AgentData>) => {
+    await updateAgent(id, updates)
+    await fetchAgents()
+    refreshSidebar()
   }
 
   const handleDelete = async () => {
     if (!deletingAgent) return
     await deleteAgent(deletingAgent.id)
     setDeletingAgent(null)
-    refreshSidebarAgents()
+    setDetailAgent(null)
+    refreshSidebar()
   }
 
   const handleResummon = async (agent: AgentData) => {
@@ -54,21 +57,7 @@ export function AgentList() {
 
   const handleSummoningComplete = () => {
     setSummoningAgent(null)
-    fetchAgents()
-    refreshSidebarAgents()
-  }
-
-  // Refresh sidebar agent list by re-fetching via store
-  const refreshSidebarAgents = () => {
-    // Trigger sidebar hook refresh by updating store — use-agents.ts fetches on mount
-    // Simple approach: directly update store with current CRUD agents mapped to sidebar format
-    refreshSidebar(agents.map((a) => ({
-      id: a.id,
-      key: a.agent_key,
-      name: a.display_name || a.agent_key,
-      model: a.model ?? 'unknown',
-      status: 'online' as const,
-    })))
+    fetchAgents().then(refreshSidebar)
   }
 
   if (loading) {
@@ -81,7 +70,7 @@ export function AgentList() {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Agents</h3>
           <button
-            onClick={handleCreate}
+            onClick={() => setFormOpen(true)}
             disabled={atLimit}
             className="px-3 py-1.5 text-xs bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
           >
@@ -101,7 +90,7 @@ export function AgentList() {
               <AgentCard
                 key={a.id}
                 agent={a}
-                onEdit={handleEdit}
+                onEdit={setDetailAgent}
                 onDelete={setDeletingAgent}
                 onResummon={handleResummon}
               />
@@ -110,13 +99,24 @@ export function AgentList() {
         )}
       </div>
 
+      {/* Create dialog */}
       <AgentFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
-        agent={editingAgent}
-        onSubmit={handleSubmit}
+        onSubmit={handleCreate}
       />
 
+      {/* Fullscreen detail panel */}
+      {detailAgent && (
+        <AgentDetailPanel
+          agent={detailAgent}
+          onSave={handleSave}
+          onResummon={async (id) => { await resummonAgent(id); setSummoningAgent({ id, name: detailAgent.display_name || detailAgent.agent_key }) }}
+          onClose={() => setDetailAgent(null)}
+        />
+      )}
+
+      {/* Delete confirm */}
       <ConfirmDeleteDialog
         open={!!deletingAgent}
         onOpenChange={(open) => { if (!open) setDeletingAgent(null) }}
@@ -127,6 +127,7 @@ export function AgentList() {
         onConfirm={handleDelete}
       />
 
+      {/* Summoning */}
       {summoningAgent && (
         <SummoningModal
           agentId={summoningAgent.id}
