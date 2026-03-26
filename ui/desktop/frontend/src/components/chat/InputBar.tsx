@@ -32,40 +32,67 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px'
   }
 
-  return (
-    <div className="border-t border-border p-3 shrink-0">
-      <div className="max-w-3xl mx-auto flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => { setText(e.target.value); handleInput() }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder ?? 'Type a message...'}
-          disabled={disabled}
-          rows={1}
-          className="flex-1 bg-surface-tertiary text-text-primary text-base md:text-sm rounded-lg px-3 py-2.5 border border-border focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-text-muted resize-none overflow-hidden"
-          style={{ maxHeight: 200 }}
-        />
+  const hasText = text.trim().length > 0
 
-        {isRunning ? (
+  return (
+    <div className="px-4 pb-4 pt-1 shrink-0">
+      <div className="max-w-3xl mx-auto">
+        {/* Input container — rounded pill with actions inside */}
+        <div className="flex items-center gap-0 bg-surface-secondary rounded-2xl border border-border focus-within:border-accent/40 transition-colors">
+          {/* Attach button */}
           <button
-            onClick={onStop}
-            className="px-4 py-2.5 bg-error text-white text-sm rounded-lg font-medium hover:opacity-90 transition-opacity shrink-0"
+            className="p-3 text-text-muted hover:text-text-secondary transition-colors shrink-0"
+            title="Attach file"
+            disabled={disabled}
           >
-            Stop
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+            </svg>
           </button>
-        ) : (
-          <button
-            onClick={handleSend}
-            disabled={!text.trim() || disabled}
-            className="px-4 py-2.5 bg-accent text-white text-sm rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-          >
-            Send
-          </button>
-        )}
+
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => { setText(e.target.value); handleInput() }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder ?? 'Type a message...'}
+            disabled={disabled}
+            rows={1}
+            className="flex-1 bg-transparent text-text-primary text-base md:text-sm py-3 px-0 focus:outline-none placeholder:text-text-muted resize-none overflow-hidden"
+            style={{ maxHeight: 160 }}
+          />
+
+          {/* Send / Stop button */}
+          <div className="p-2 shrink-0">
+            {isRunning ? (
+              <button
+                onClick={onStop}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-error text-white hover:opacity-90 transition-opacity"
+                title="Stop"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!hasText || disabled}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Send"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

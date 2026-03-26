@@ -66,6 +66,21 @@
   --color-error: oklch(0.65 0.23 25);
 }
 
+/* Floating panel design system */
+.canvas-dots {
+  background-image: radial-gradient(circle, oklch(0.26 0.02 45) 0.8px, transparent 0.8px);
+  background-size: 28px 28px;
+}
+:root:not(.dark) .canvas-dots {
+  background-image: radial-gradient(circle, oklch(0.86 0.01 70) 0.8px, transparent 0.8px);
+}
+.floating-panel {
+  background: var(--color-surface-secondary);
+  border-radius: 16px;
+  box-shadow: 0 2px 20px oklch(0 0 0 / 0.2);
+  border: 1px solid var(--color-border);
+}
+
 /* Base styles */
 body {
   margin: 0;
@@ -101,14 +116,9 @@ body {
 .wails-drag {
   --wails-draggable: drag;
 }
-
-/* Transitions */
-* {
-  transition-duration: 150ms;
-  transition-timing-function: ease-in-out;
+.wails-no-drag {
+  --wails-draggable: no-drag;
 }
 
-/* Prevent transition on load */
-.no-transition * {
-  transition: none !important;
-}
+/* Transitions are applied via Tailwind utilities (transition-colors, transition-opacity, etc.)
+   instead of a global * rule to avoid layout jank and performance overhead. */

@@ -273,7 +273,7 @@ func (s *SQLiteSessionStore) loadFromDB(ctx context.Context, key string) *store.
 	var inputTokens, outputTokens int64
 	var compactionCount, memoryFlushCompactionCount, spawnDepth int
 	var memoryFlushAt int64
-	var createdAt, updatedAt time.Time
+	createdAt, updatedAt := scanTimePair()
 	var metaJSON *[]byte
 
 	tid := tenantIDForInsert(ctx)
@@ -288,7 +288,7 @@ func (s *SQLiteSessionStore) loadFromDB(ctx context.Context, key string) *store.
 		&inputTokens, &outputTokens, &compactionCount,
 		&memoryFlushCompactionCount, &memoryFlushAt,
 		&label, &spawnedBy, &spawnDepth, &agentID, &userID,
-		&metaJSON, &createdAt, &updatedAt, &teamID)
+		&metaJSON, createdAt, updatedAt, &teamID)
 	if err != nil {
 		return nil
 	}
@@ -305,8 +305,8 @@ func (s *SQLiteSessionStore) loadFromDB(ctx context.Context, key string) *store.
 		Key:                        sessionKey,
 		Messages:                   msgs,
 		Summary:                    derefStr(summary),
-		Created:                    createdAt,
-		Updated:                    updatedAt,
+		Created:                    createdAt.Time,
+		Updated:                    updatedAt.Time,
 		AgentUUID:                  derefUUID(agentID),
 		UserID:                     derefStr(userID),
 		TeamID:                     teamID,

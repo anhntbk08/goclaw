@@ -24,6 +24,7 @@ class ApiClient {
     return {
       Authorization: `Bearer ${this.token}`,
       'Content-Type': 'application/json',
+      'X-GoClaw-User-Id': 'system',
       ...extra,
     }
   }
@@ -95,7 +96,8 @@ class ApiClient {
 let apiClient: ApiClient | null = null
 
 export function getApiClient(): ApiClient {
-  return apiClient!
+  if (!apiClient) throw new Error('ApiClient not initialized — call initApiClient() first')
+  return apiClient
 }
 
 export function initApiClient(baseUrl: string, token: string): ApiClient {

@@ -88,7 +88,7 @@ export class WsClient {
       method: 'connect',
       params: {
         token: this.token,
-        user_id: 'desktop-user',
+        user_id: 'system',
         sender_id: 'desktop',
         locale: navigator.language.split('-')[0] || 'en',
         protocol_version: 3,
@@ -264,7 +264,8 @@ export class WsClient {
 let client: WsClient | null = null
 
 export function getWsClient(): WsClient {
-  return client!
+  if (!client) throw new Error('WsClient not initialized — call initWsClient() first')
+  return client
 }
 
 export function initWsClient(url: string, token: string): WsClient {

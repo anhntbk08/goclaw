@@ -22,7 +22,7 @@ interface Message {
 }
 
 interface Activity {
-  phase: 'thinking' | 'tool_exec' | 'compacting'
+  phase: string // thinking, tool_exec, compacting, streaming, retrying, leader_processing
   tool?: string
   iteration?: number
 }

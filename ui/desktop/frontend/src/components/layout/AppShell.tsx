@@ -1,6 +1,5 @@
 import { useUiStore } from '../../stores/ui-store'
 import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -8,18 +7,22 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
-  const sidebarWidth = useUiStore((s) => s.sidebarWidth)
 
   return (
-    <div className="h-dvh flex flex-col bg-surface-primary overflow-hidden">
-      <TopBar />
-      <div className="flex flex-1 min-h-0">
-        {sidebarOpen && (
-          <Sidebar style={{ width: sidebarWidth }} />
-        )}
-        <main className="flex-1 flex flex-col min-w-0">
-          {children}
-        </main>
+    <div className="h-dvh flex bg-surface-primary overflow-hidden">
+      {/* Wails drag region — transparent overlay at top */}
+      <div className="wails-drag fixed top-0 left-0 right-0 h-8 z-50" />
+
+      {/* Sidebar panel */}
+      {sidebarOpen && (
+        <div className="floating-panel m-3 mr-0 flex flex-col w-[260px] shrink-0">
+          <Sidebar />
+        </div>
+      )}
+
+      {/* Main chat panel */}
+      <div className="floating-panel m-3 ml-2 flex-1 flex flex-col min-w-0">
+        {children}
       </div>
     </div>
   )

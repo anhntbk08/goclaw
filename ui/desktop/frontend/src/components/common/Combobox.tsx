@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react'
 
 interface ComboboxOption {
   value: string
@@ -18,8 +18,10 @@ interface ComboboxProps {
 export function Combobox({ value, onChange, options, placeholder, loading, allowCustom = true, disabled }: ComboboxProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [highlightIdx, setHighlightIdx] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const filtered = options.filter((o) =>
     o.label.toLowerCase().includes(search.toLowerCase()) ||
@@ -27,6 +29,9 @@ export function Combobox({ value, onChange, options, placeholder, loading, allow
   )
 
   const displayValue = options.find((o) => o.value === value)?.label || value
+
+  // Reset highlight when filtered list changes
+  useEffect(() => { setHighlightIdx(-1) }, [search])
 
   // Close on outside click
   useEffect(() => {
@@ -40,10 +45,45 @@ export function Combobox({ value, onChange, options, placeholder, loading, allow
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleSelect = (val: string) => {
+  const handleSelect = useCallback((val: string) => {
     onChange(val)
     setSearch('')
     setOpen(false)
+    inputRef.current?.blur()
+  }, [onChange])
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!open) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setHighlightIdx((prev) => {
+          const next = prev < filtered.length - 1 ? prev + 1 : 0
+          itemRefs.current[next]?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setHighlightIdx((prev) => {
+          const next = prev > 0 ? prev - 1 : filtered.length - 1
+          itemRefs.current[next]?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (highlightIdx >= 0 && filtered[highlightIdx]) {
+          handleSelect(filtered[highlightIdx].value)
+        }
+        break
+      case 'Escape':
+        e.preventDefault()
+        setOpen(false)
+        inputRef.current?.blur()
+        break
+    }
   }
 
   return (
@@ -54,9 +94,10 @@ export function Combobox({ value, onChange, options, placeholder, loading, allow
         value={open ? search : displayValue}
         onChange={(e) => { setSearch(e.target.value); if (allowCustom) onChange(e.target.value) }}
         onFocus={() => { setOpen(true); setSearch('') }}
+        onKeyDown={handleKeyDown}
         placeholder={loading ? 'Loading...' : placeholder}
         disabled={disabled || loading}
-        className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+        className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 pr-8 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
       />
       {/* Dropdown chevron */}
       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
@@ -68,14 +109,17 @@ export function Combobox({ value, onChange, options, placeholder, loading, allow
           ref={dropdownRef}
           className="absolute z-50 top-full mt-1 w-full max-h-48 overflow-y-auto bg-surface-secondary border border-border rounded-lg shadow-lg py-1"
         >
-          {filtered.map((o) => (
+          {filtered.map((o, idx) => (
             <button
               key={o.value}
+              ref={(el) => { itemRefs.current[idx] = el }}
               onClick={() => handleSelect(o.value)}
               className={[
-                'w-full text-left px-3 py-1.5 text-sm hover:bg-surface-tertiary transition-colors',
+                'w-full text-left px-3 py-1.5 text-sm transition-colors',
+                idx === highlightIdx ? 'bg-surface-tertiary' : '',
                 o.value === value ? 'text-accent font-medium' : 'text-text-primary',
-              ].join(' ')}
+                idx !== highlightIdx ? 'hover:bg-surface-tertiary' : '',
+              ].filter(Boolean).join(' ')}
             >
               {o.label}
             </button>

@@ -69,15 +69,18 @@ func (s *SQLiteProviderStore) GetProvider(ctx context.Context, id uuid.UUID) (*s
 	}
 	var p store.LLMProviderData
 	var apiKey string
+	createdAt, updatedAt := scanTimePair()
 	args := append([]any{id}, tArgs...)
 	err = s.db.QueryRowContext(ctx,
 		`SELECT id, name, display_name, provider_type, api_base, api_key, enabled, settings, created_at, updated_at, tenant_id
 		 FROM llm_providers WHERE id = ?`+tClause,
 		args...,
-	).Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, &p.CreatedAt, &p.UpdatedAt, &p.TenantID)
+	).Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, createdAt, updatedAt, &p.TenantID)
 	if err != nil {
 		return nil, fmt.Errorf("provider not found: %s", id)
 	}
+	p.CreatedAt = createdAt.Time
+	p.UpdatedAt = updatedAt.Time
 	p.APIKey = s.decryptKey(apiKey, p.Name)
 	return &p, nil
 }
@@ -89,15 +92,18 @@ func (s *SQLiteProviderStore) GetProviderByName(ctx context.Context, name string
 	}
 	var p store.LLMProviderData
 	var apiKey string
+	createdAt, updatedAt := scanTimePair()
 	args := append([]any{name}, tArgs...)
 	err = s.db.QueryRowContext(ctx,
 		`SELECT id, name, display_name, provider_type, api_base, api_key, enabled, settings, created_at, updated_at, tenant_id
 		 FROM llm_providers WHERE name = ?`+tClause,
 		args...,
-	).Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, &p.CreatedAt, &p.UpdatedAt, &p.TenantID)
+	).Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, createdAt, updatedAt, &p.TenantID)
 	if err != nil {
 		return nil, fmt.Errorf("provider not found: %s", name)
 	}
+	p.CreatedAt = createdAt.Time
+	p.UpdatedAt = updatedAt.Time
 	p.APIKey = s.decryptKey(apiKey, p.Name)
 	return &p, nil
 }
@@ -178,9 +184,13 @@ func (s *SQLiteProviderStore) scanProviders(rows *sql.Rows) ([]store.LLMProvider
 	for rows.Next() {
 		var p store.LLMProviderData
 		var apiKey string
-		if err := rows.Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, &p.CreatedAt, &p.UpdatedAt, &p.TenantID); err != nil {
+		createdAt, updatedAt := scanTimePair()
+		if err := rows.Scan(&p.ID, &p.Name, &p.DisplayName, &p.ProviderType, &p.APIBase, &apiKey, &p.Enabled, &p.Settings, createdAt, updatedAt, &p.TenantID); err != nil {
+			slog.Error("providers.scan", "error", err)
 			continue
 		}
+		p.CreatedAt = createdAt.Time
+		p.UpdatedAt = updatedAt.Time
 		p.APIKey = s.decryptKey(apiKey, p.Name)
 		result = append(result, p)
 	}

@@ -4,6 +4,16 @@ import { useSessionStore } from '../stores/session-store'
 import { useAgentStore } from '../stores/agent-store'
 import { useChatStore } from '../stores/chat-store'
 
+// Backend SessionInfo: { key, messageCount, created, updated, label, channel, userID }
+interface SessionInfoResponse {
+  key: string
+  messageCount: number
+  created: string  // ISO timestamp
+  updated: string  // ISO timestamp
+  label?: string
+  channel?: string
+}
+
 export function useSessions() {
   const ws = getWsClient()
   const { sessions, activeSessionKey, setActiveSession, setSessions, addSession } = useSessionStore()
@@ -12,16 +22,15 @@ export function useSessions() {
   useEffect(() => {
     if (!ws || !selectedAgentId) return
     let cancelled = false
-    const agentId = selectedAgentId
-    ws.call('sessions.list', { agentId, limit: 20 })
+    ws.call('sessions.list', { agentId: selectedAgentId, limit: 30 })
       .then((result: unknown) => {
         if (cancelled) return
-        const r = result as { sessions?: Array<{ key?: string; sessionKey?: string; title?: string; name?: string; lastMessageAt?: number; updatedAt?: number; messageCount?: number }> }
+        const r = result as { sessions?: SessionInfoResponse[] }
         const list = (r?.sessions || []).map((s) => ({
-          key: s.key || s.sessionKey || '',
-          agentId,
-          title: s.title || s.name || 'Untitled',
-          lastMessageAt: s.lastMessageAt || s.updatedAt || Date.now(),
+          key: s.key,
+          agentId: selectedAgentId,
+          title: s.label || 'Untitled',
+          lastMessageAt: new Date(s.updated || s.created).getTime(),
           messageCount: s.messageCount || 0,
         }))
         setSessions(list)
@@ -32,7 +41,7 @@ export function useSessions() {
 
   const createSession = useCallback(() => {
     if (!selectedAgentId) return
-    const key = `agent:${selectedAgentId}:ws:direct:desktop-user:${crypto.randomUUID().slice(0, 8)}`
+    const key = `agent:${selectedAgentId}:ws:direct:system:${crypto.randomUUID().slice(0, 8)}`
     const session = {
       key,
       agentId: selectedAgentId,

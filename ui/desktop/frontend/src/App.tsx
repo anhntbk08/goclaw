@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { useUiStore } from './stores/ui-store'
 import { AppShell } from './components/layout/AppShell'
 import { ChatCanvas } from './components/chat/ChatCanvas'
-import { StatusBar } from './components/layout/StatusBar'
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard'
 import { wails } from './lib/wails'
 import { initWsClient } from './lib/ws'
 import { initApiClient } from './lib/api'
 import { useSessions } from './hooks/use-sessions'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 
 function AppReady() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
@@ -16,14 +16,8 @@ function AppReady() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
-      if (mod && e.key === 'b') {
-        e.preventDefault()
-        toggleSidebar()
-      }
-      if (mod && e.key === 'n') {
-        e.preventDefault()
-        createSession()
-      }
+      if (mod && e.key === 'b') { e.preventDefault(); toggleSidebar() }
+      if (mod && e.key === 'n') { e.preventDefault(); createSession() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -32,7 +26,6 @@ function AppReady() {
   return (
     <AppShell>
       <ChatCanvas />
-      <StatusBar />
     </AppShell>
   )
 }
@@ -49,7 +42,6 @@ function App() {
 
   useEffect(() => {
     const init = async () => {
-      // Poll for gateway readiness
       let attempts = 0
       while (attempts < 30) {
         try {
@@ -60,37 +52,24 @@ function App() {
         attempts++
       }
 
-      // Initialize clients
       let token = ''
-      try {
-        token = await wails.getGatewayToken()
-      } catch (e) {
-        console.warn('[app] failed to get token from Wails binding:', e)
+      try { token = await wails.getGatewayToken() } catch (e) {
+        console.warn('[app] failed to get token:', e)
       }
-      console.info('[app] token length:', token?.length, 'prefix:', token?.slice(0, 8))
 
-      // Always use the actual gateway URL from Wails binding.
-      // In dev mode, Wails serves from port 34115 which doesn't proxy API calls,
-      // so we must connect directly to the gateway.
       const gatewayUrl = await wails.getGatewayURL()
       const wsUrl = gatewayUrl.replace(/^http/, 'ws') + '/ws'
 
-      console.info('[app] api url:', gatewayUrl || '(relative)', 'ws url:', wsUrl)
       initWsClient(wsUrl, token)
       initApiClient(gatewayUrl, token)
-
       setReady(true)
     }
     init()
   }, [])
 
-  const handleOnboardingComplete = () => {
-    completeOnboarding()
-  }
-
   if (!ready) {
     return (
-      <div className="h-dvh flex items-center justify-center bg-surface-primary">
+      <div className="h-dvh flex items-center justify-center canvas-bg">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-text-secondary text-sm">Starting gateway...</p>
@@ -100,10 +79,14 @@ function App() {
   }
 
   if (!onboarded) {
-    return <OnboardingWizard onComplete={handleOnboardingComplete} />
+    return <OnboardingWizard onComplete={completeOnboarding} />
   }
 
-  return <AppReady />
+  return (
+    <ErrorBoundary>
+      <AppReady />
+    </ErrorBoundary>
+  )
 }
 
 export default App

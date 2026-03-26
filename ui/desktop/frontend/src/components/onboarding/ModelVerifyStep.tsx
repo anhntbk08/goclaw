@@ -1,51 +1,78 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { getApiClient } from '../../lib/api'
 import { Combobox } from '../common/Combobox'
-import type { StepProps } from './WelcomeStep'
+import type { ProviderData } from '../../types/provider'
 
-interface ModelVerifyStepProps extends StepProps {
-  providerId: string | null
-  onModelSelected: (model: string) => void
+const VERIFY_TIMEOUT_SECS = 30
+
+interface ModelVerifyStepProps {
+  provider: ProviderData
+  initialModel?: string | null
+  onBack: () => void
+  onComplete: (model: string) => void
 }
 
-export function ModelVerifyStep({ onNext, onBack, providerId, onModelSelected }: ModelVerifyStepProps) {
+export function ModelVerifyStep({ provider, initialModel, onBack, onComplete }: ModelVerifyStepProps) {
   const [models, setModels] = useState<string[]>([])
-  const [model, setModel] = useState('')
+  const [model, setModel] = useState(initialModel ?? '')
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [verified, setVerified] = useState(false)
   const [error, setError] = useState('')
+  const [countdown, setCountdown] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Fetch available models from provider
+  // Fetch available models
   useEffect(() => {
-    if (!providerId) return
+    if (!provider.id) return
     setLoading(true)
+    console.info('[models] fetching for provider:', provider.id, provider.name)
     getApiClient()
-      .get<{ models?: { id: string }[] }>(`/v1/providers/${providerId}/models`)
+      .get<{ models?: { id: string; name?: string }[] }>(`/v1/providers/${provider.id}/models`)
       .then((res) => {
+        console.info('[models] response:', res)
         const ids = (res.models ?? []).map((m) => m.id)
         setModels(ids)
-        if (ids.length > 0) setModel(ids[0])
+        if (!model && ids.length > 0) setModel(ids[0])
       })
-      .catch(() => { /* models endpoint may not exist for this provider */ })
+      .catch((err) => {
+        console.warn('[models] fetch failed:', err)
+      })
       .finally(() => setLoading(false))
-  }, [providerId])
+  }, [provider.id])
+
+  // Reset verification when model changes
+  useEffect(() => {
+    setVerified(false)
+    setError('')
+  }, [model])
+
+  // Countdown timer during verification
+  useEffect(() => {
+    if (verifying) {
+      setCountdown(VERIFY_TIMEOUT_SECS)
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => (prev <= 1 ? 0 : prev - 1))
+      }, 1000)
+    } else {
+      setCountdown(0)
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    }
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
+  }, [verifying])
 
   const handleVerify = async () => {
-    if (!model.trim() || !providerId) return
+    if (!model.trim()) return
     setVerifying(true)
     setError('')
     setVerified(false)
-    const start = Date.now()
     try {
       const result = await getApiClient().post<{ valid: boolean; error?: string }>(
-        `/v1/providers/${providerId}/verify`,
+        `/v1/providers/${provider.id}/verify`,
         { model: model.trim() }
       )
-      const elapsed = Date.now() - start
       if (result.valid) {
         setVerified(true)
-        setError(`Connected in ${elapsed}ms`)
       } else {
         setError(result.error ?? 'Verification failed')
       }
@@ -56,52 +83,81 @@ export function ModelVerifyStep({ onNext, onBack, providerId, onModelSelected }:
     }
   }
 
-  const handleContinue = () => {
-    onModelSelected(model.trim())
-    onNext()
-  }
+  const providerLabel = provider.display_name || provider.name
+
+  const verifyButtonLabel = verifying
+    ? `Verifying (${countdown}s)`
+    : verified
+      ? 'Verified'
+      : 'Verify'
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-text-primary mb-2">Select & Verify Model</h2>
-      <p className="text-text-secondary mb-5">Choose a model and test the connection.</p>
+    <div className="bg-surface-secondary border border-border rounded-xl p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-text-primary">Select & Verify Model</h2>
+        <p className="text-sm text-text-muted">Choose a model and test the connection.</p>
+      </div>
 
-      {/* Model selection — searchable combobox with API-loaded options */}
-      <div className="mb-5">
-        <label className="block text-sm font-medium text-text-secondary mb-1.5">Model</label>
+      {/* Provider badge */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-text-muted">Provider</span>
+        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-surface-tertiary border border-border text-text-secondary">
+          {providerLabel}
+        </span>
+      </div>
+
+      {/* Model selection */}
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-text-secondary">Model</label>
         <Combobox
           value={model}
-          onChange={(v) => { setModel(v); setVerified(false); setError('') }}
+          onChange={setModel}
           options={models.map((m) => ({ value: m, label: m }))}
-          placeholder="Search or type a model name..."
+          placeholder={loading ? 'Loading models...' : 'Search or type a model name...'}
           loading={loading}
           allowCustom
         />
+        {!loading && models.length === 0 && (
+          <p className="text-xs text-text-muted">
+            No models returned by API. You can type a model name manually.
+          </p>
+        )}
       </div>
 
-      {/* Status */}
+      {/* Verification status */}
       {error && (
-        <div className={['mb-4 text-sm px-3 py-2 rounded-lg', verified ? 'bg-success/10 text-success' : 'bg-error/10 text-error'].join(' ')}>
-          {verified ? '✓ ' : '✕ '}{error}
+        <p className="text-sm text-error">{error}</p>
+      )}
+      {verified && (
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-3">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-success flex-shrink-0">
+            <path d="M4 10L8 14L16 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-success">Model verified</p>
+            <p className="text-xs text-text-muted">{model} is working with {providerLabel}</p>
+          </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Back
+      <div className="flex justify-between gap-2">
+        <button
+          onClick={onBack}
+          className="px-4 py-2.5 border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-tertiary transition-colors"
+        >
+          &larr; Back
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex gap-2">
           <button
             onClick={handleVerify}
-            disabled={!model.trim() || verifying}
+            disabled={!model.trim() || verifying || verified}
             className="px-4 py-2.5 border border-border rounded-lg text-sm font-medium text-text-secondary hover:border-accent hover:text-text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {verifying && <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />}
-            Test Connection
+            {verifyButtonLabel}
           </button>
           <button
-            onClick={handleContinue}
+            onClick={() => onComplete(model.trim())}
             disabled={!verified}
             className="px-6 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -112,5 +168,3 @@ export function ModelVerifyStep({ onNext, onBack, providerId, onModelSelected }:
     </div>
   )
 }
-
-export type { ModelVerifyStepProps }

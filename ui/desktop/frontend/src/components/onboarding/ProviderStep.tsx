@@ -1,188 +1,159 @@
 import { useState } from 'react'
 import { getApiClient } from '../../lib/api'
-import type { StepProps } from './WelcomeStep'
+import { PROVIDER_TYPES, slugify } from '../../constants/providers'
+import { Combobox } from '../common/Combobox'
+import type { ProviderData } from '../../types/provider'
 
-interface ProviderDef {
-  type: string
-  label: string
-  apiBase: string
-  needsKey: boolean
-  group: 'popular' | 'cloud' | 'local' | 'regional'
+interface ProviderStepProps {
+  existingProvider?: ProviderData | null
+  onComplete: (provider: ProviderData) => void
 }
 
-const PROVIDERS: ProviderDef[] = [
-  // Popular
-  { type: 'anthropic_native', label: 'Anthropic (Claude)', apiBase: 'https://api.anthropic.com', needsKey: true, group: 'popular' },
-  { type: 'openai_compat', label: 'OpenAI', apiBase: 'https://api.openai.com/v1', needsKey: true, group: 'popular' },
-  { type: 'gemini_native', label: 'Google Gemini', apiBase: 'https://generativelanguage.googleapis.com/v1beta/openai', needsKey: true, group: 'popular' },
-  { type: 'openrouter', label: 'OpenRouter', apiBase: 'https://openrouter.ai/api/v1', needsKey: true, group: 'popular' },
-  // Cloud
-  { type: 'groq', label: 'Groq', apiBase: 'https://api.groq.com/openai/v1', needsKey: true, group: 'cloud' },
-  { type: 'deepseek', label: 'DeepSeek', apiBase: 'https://api.deepseek.com/v1', needsKey: true, group: 'cloud' },
-  { type: 'mistral', label: 'Mistral AI', apiBase: 'https://api.mistral.ai/v1', needsKey: true, group: 'cloud' },
-  { type: 'xai', label: 'xAI (Grok)', apiBase: 'https://api.x.ai/v1', needsKey: true, group: 'cloud' },
-  { type: 'cohere', label: 'Cohere', apiBase: 'https://api.cohere.ai/compatibility/v1', needsKey: true, group: 'cloud' },
-  { type: 'perplexity', label: 'Perplexity', apiBase: 'https://api.perplexity.ai', needsKey: true, group: 'cloud' },
-  { type: 'minimax_native', label: 'MiniMax', apiBase: 'https://api.minimax.io/v1', needsKey: true, group: 'cloud' },
-  // Local
-  { type: 'ollama', label: 'Ollama (Local)', apiBase: 'http://localhost:11434/v1', needsKey: false, group: 'local' },
-  { type: 'ollama_cloud', label: 'Ollama Cloud', apiBase: 'https://ollama.com/v1', needsKey: true, group: 'local' },
-  { type: 'claude_cli', label: 'Claude CLI', apiBase: '', needsKey: false, group: 'local' },
-  // Regional
-  { type: 'dashscope', label: 'DashScope (Qwen)', apiBase: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', needsKey: true, group: 'regional' },
-  { type: 'bailian', label: 'Bailian Coding', apiBase: 'https://coding-intl.dashscope.aliyuncs.com/v1', needsKey: true, group: 'regional' },
-  { type: 'yescale', label: 'YesScale', apiBase: 'https://api.yescale.one/v1', needsKey: true, group: 'regional' },
-  { type: 'zai', label: 'Z.ai API', apiBase: 'https://api.z.ai/api/paas/v4', needsKey: true, group: 'regional' },
-  { type: 'zai_coding', label: 'Z.ai Coding Plan', apiBase: 'https://api.z.ai/api/coding/paas/v4', needsKey: true, group: 'regional' },
-]
+export function ProviderStep({ existingProvider, onComplete }: ProviderStepProps) {
+  const isEditing = !!existingProvider
 
-const GROUP_LABELS: Record<string, string> = {
-  popular: 'Popular',
-  cloud: 'Cloud APIs',
-  local: 'Local / CLI',
-  regional: 'Regional',
-}
-
-interface ProviderStepProps extends StepProps {
-  onProviderSaved: (providerId: string) => void
-}
-
-// Step 1: Create provider (save to DB) — no verification yet
-export function ProviderStep({ onNext, onBack, onProviderSaved }: ProviderStepProps) {
-  const [selected, setSelected] = useState('anthropic_native')
+  const [providerType, setProviderType] = useState(existingProvider?.provider_type ?? 'openrouter')
+  const [name, setName] = useState(existingProvider?.name ?? 'openrouter')
   const [apiKey, setApiKey] = useState('')
-  const [showKey, setShowKey] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [apiBase, setApiBase] = useState(
+    existingProvider?.api_base ?? 'https://openrouter.ai/api/v1'
+  )
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const provider = PROVIDERS.find((p) => p.type === selected)!
-  const canSave = !provider.needsKey || apiKey.trim().length > 0
+  const preset = PROVIDER_TYPES.find((t) => t.value === providerType)
+  const needsKey = preset?.needsKey ?? true
 
-  const handleSelect = (type: string) => {
-    setSelected(type)
+  const handleTypeChange = (value: string) => {
+    setProviderType(value)
+    const p = PROVIDER_TYPES.find((t) => t.value === value)
+    setName(slugify(value))
+    setApiBase(p?.apiBase || '')
+    setApiKey('')
     setError('')
   }
 
-  const handleSave = async () => {
-    setSaving(true)
+  const handleSubmit = async () => {
+    if (!isEditing && needsKey && !apiKey.trim()) {
+      setError('API key is required')
+      return
+    }
+    setLoading(true)
     setError('')
     try {
       const api = getApiClient()
-      const slug = `onboarding-${provider.type}`
-      const payload: Record<string, unknown> = {
-        name: slug,
-        provider_type: provider.type,
-        api_base: provider.apiBase || undefined,
-        enabled: true,
-      }
-      if (provider.needsKey) payload.api_key = apiKey.trim()
-
-      // Check if provider with same slug exists → update it
-      const list = await api.get<{ providers?: { id: string; name: string }[] | null }>('/v1/providers')
-      const existing = (list.providers ?? []).find((p) => p.name === slug)
-
-      let providerId: string
-      if (existing) {
-        await api.put(`/v1/providers/${existing.id}`, payload)
-        providerId = existing.id
+      if (isEditing) {
+        const patch: Record<string, unknown> = {
+          name: name.trim(),
+          provider_type: providerType,
+          api_base: apiBase.trim() || undefined,
+        }
+        if (apiKey.trim()) patch.api_key = apiKey.trim()
+        await api.put(`/v1/providers/${existingProvider!.id}`, patch)
+        onComplete({ ...existingProvider!, ...patch } as ProviderData)
       } else {
-        const created = await api.post<{ id: string }>('/v1/providers', payload)
-        providerId = created.id
-      }
+        const payload: Record<string, unknown> = {
+          name: name.trim(),
+          provider_type: providerType,
+          api_base: apiBase.trim() || undefined,
+          enabled: true,
+        }
+        if (needsKey) payload.api_key = apiKey.trim()
 
-      onProviderSaved(providerId)
-      onNext()
+        // Check if provider with same name already exists → update instead of create
+        const list = await api.get<{ providers?: ProviderData[] | null }>('/v1/providers')
+        const existing = (list.providers ?? []).find((p) => p.name === name.trim())
+        if (existing) {
+          await api.put(`/v1/providers/${existing.id}`, payload)
+          onComplete({ ...existing, ...payload } as ProviderData)
+        } else {
+          const result = await api.post<ProviderData>('/v1/providers', payload)
+          onComplete(result)
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save provider')
+      setError(err instanceof Error ? err.message : 'Failed to create provider')
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
-  const groups = ['popular', 'cloud', 'local', 'regional'] as const
-
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-text-primary mb-2">Choose a Provider</h2>
-      <p className="text-text-secondary mb-5">Select an AI provider and enter your API key.</p>
-
-      <div className="max-h-[260px] overflow-y-auto space-y-4 mb-5 pr-1">
-        {groups.map((g) => {
-          const items = PROVIDERS.filter((p) => p.group === g)
-          return (
-            <div key={g}>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5">{GROUP_LABELS[g]}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {items.map((p) => (
-                  <button
-                    key={p.type}
-                    onClick={() => handleSelect(p.type)}
-                    className={[
-                      'px-3 py-2 rounded-lg border text-left transition-all text-sm',
-                      selected === p.type
-                        ? 'border-accent bg-accent/10 text-text-primary'
-                        : 'border-border hover:border-accent/50 text-text-secondary',
-                    ].join(' ')}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )
-        })}
+    <div className="bg-surface-secondary border border-border rounded-xl p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-text-primary">Configure Provider</h2>
+        <p className="text-sm text-text-muted">Select an AI provider and enter your credentials.</p>
       </div>
 
-      {provider.needsKey && (
-        <div className="mb-5">
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">API Key</label>
-          <div className="relative">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => { setApiKey(e.target.value); setError('') }}
-              placeholder={`Paste your ${provider.label} API key`}
-              className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 pr-10 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5Z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" stroke="currentColor" strokeWidth="1.5" />
-                {showKey && <path d="M2 2l12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />}
-              </svg>
-            </button>
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Provider type select */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-text-secondary">Provider Type</label>
+          <Combobox
+            value={providerType}
+            onChange={handleTypeChange}
+            options={PROVIDER_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            placeholder="Search providers..."
+            allowCustom={false}
+          />
+        </div>
+
+        {/* Name (slug) */}
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-text-secondary">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(slugify(e.target.value))}
+            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+      </div>
+
+      {/* API Key */}
+      {needsKey && (
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-text-secondary">API Key</label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => { setApiKey(e.target.value); setError('') }}
+            placeholder="sk-..."
+            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          />
         </div>
       )}
 
-      {!provider.needsKey && (
-        <p className="mb-5 text-sm text-text-muted">No API key required for {provider.label}.</p>
+      {/* API Base */}
+      {needsKey && (
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-text-secondary">API Base URL</label>
+          <input
+            type="text"
+            value={apiBase}
+            onChange={(e) => setApiBase(e.target.value)}
+            placeholder="https://api.example.com/v1"
+            className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
       )}
 
-      {error && (
-        <div className="mb-4 text-sm px-3 py-2 rounded-lg bg-error/10 text-error">{error}</div>
+      {!needsKey && (
+        <p className="text-sm text-text-muted">No API key required for {preset?.label}.</p>
       )}
 
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Back
-        </button>
+      {error && <p className="text-sm text-error">{error}</p>}
+
+      <div className="flex justify-end">
         <button
-          onClick={handleSave}
-          disabled={!canSave || saving}
+          onClick={handleSubmit}
+          disabled={loading || (!isEditing && needsKey && !apiKey.trim())}
           className="px-6 py-2.5 bg-accent text-white rounded-lg font-medium hover:bg-accent-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          {saving && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-          Save & Continue
+          {loading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+          {isEditing ? 'Update' : 'Create Provider'}
         </button>
       </div>
     </div>
   )
 }
-
-export type { ProviderStepProps }

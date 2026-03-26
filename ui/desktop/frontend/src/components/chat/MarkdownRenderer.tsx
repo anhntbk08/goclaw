@@ -12,7 +12,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeSanitize]}
-      className="text-sm leading-relaxed text-text-primary"
+      className="text-sm leading-relaxed text-text-primary break-words overflow-hidden"
       children={content}
       components={{
         code({ className, children, ...props }) {

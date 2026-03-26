@@ -78,64 +78,94 @@ export function useChat() {
 
       if (activeSessionKey && event.sessionKey !== activeSessionKey) return
 
+      const p = event.payload ?? {}
+
       switch (event.type) {
         case 'run.started':
           currentRunIdRef.current = event.runId
           startRun(event.runId)
           break
 
+        // Backend sends: { content: "..." }
         case 'chunk':
-          chunkBatcher.append(event.payload.chunk as string)
+          chunkBatcher.append((p.content as string) ?? '')
           break
 
+        // Backend sends: { content: "thinking text..." }
         case 'thinking':
-          thinkingBatcher.append(event.payload.thinking as string)
+          thinkingBatcher.append((p.content as string) ?? '')
           break
 
+        // Backend sends: { name, id, arguments }
         case 'tool.call':
-          // Flush pending text before showing tool card
           chunkBatcher.flush()
           addToolCall({
-            toolId: event.payload.toolId as string,
-            toolName: event.payload.toolName as string,
-            arguments: event.payload.arguments as Record<string, unknown>,
+            toolId: (p.id as string) ?? '',
+            toolName: (p.name as string) ?? 'unknown',
+            arguments: (p.arguments as Record<string, unknown>) ?? {},
           })
           break
 
-        case 'tool.result':
+        // Backend sends: { name, id, is_error, result, content (when error), arguments }
+        case 'tool.result': {
+          const isError = p.is_error as boolean
+          const toolId = (p.id as string) ?? ''
           updateToolResult(
-            event.payload.toolId as string,
-            event.payload.result as string,
-            event.payload.error as string | undefined,
+            toolId,
+            isError ? '' : ((p.result as string) ?? ''),
+            isError ? ((p.content as string) ?? (p.result as string) ?? 'Error') : undefined,
           )
           break
+        }
 
+        // Backend sends: { content: "intermediate reply text" }
+        case 'block.reply':
+          // Intermediate assistant content during tool iterations — append as chunk
+          chunkBatcher.flush()
+          appendChunk((p.content as string) ?? '')
+          break
+
+        // Backend sends: { phase, tool, tools[], iteration }
         case 'activity':
           setActivity({
-            phase: event.payload.phase as 'thinking' | 'tool_exec' | 'compacting',
-            tool: event.payload.tool as string | undefined,
-            iteration: event.payload.iteration as number | undefined,
+            phase: (p.phase as string) ?? 'thinking',
+            tool: p.tool as string | undefined,
+            iteration: p.iteration as number | undefined,
           })
           break
 
+        // Backend sends: { content, usage: { prompt_tokens, completion_tokens, total_tokens, ... }, media }
         case 'run.completed': {
           chunkBatcher.flush()
           thinkingBatcher.flush()
-          const p = event.payload
+          const usage = p.usage as Record<string, number> | undefined
           completeRun(
-            p.content as string,
-            p.usage as { inputTokens: number; outputTokens: number } | undefined,
+            (p.content as string) ?? '',
+            usage ? {
+              inputTokens: usage.prompt_tokens ?? 0,
+              outputTokens: usage.completion_tokens ?? 0,
+            } : undefined,
             p.media as { type: string; url: string }[] | undefined,
           )
           currentRunIdRef.current = null
           break
         }
 
+        // Backend sends: { error: "..." }
         case 'run.failed':
           chunkBatcher.flush()
           thinkingBatcher.flush()
-          failRun(event.payload.error as string)
+          failRun((p.error as string) ?? 'Unknown error')
           currentRunIdRef.current = null
+          break
+
+        // Backend sends: { attempt, maxAttempts, error }
+        case 'run.retrying':
+          setActivity({
+            phase: 'retrying',
+            tool: undefined,
+            iteration: Number(p.attempt) || 0,
+          })
           break
       }
     })
@@ -145,6 +175,7 @@ export function useChat() {
     ws,
     activeSessionKey,
     startRun,
+    appendChunk,
     addToolCall,
     updateToolResult,
     setActivity,
@@ -158,13 +189,29 @@ export function useChat() {
     async (text: string, agentId: string) => {
       if (!ws || !text.trim()) return
 
+      // Auto-create session if none active
+      let sessionKey = activeSessionKey
+      if (!sessionKey) {
+        sessionKey = `agent:${agentId}:ws:direct:system:${crypto.randomUUID().slice(0, 8)}`
+        // Import and update session store directly
+        const { useSessionStore } = await import('../stores/session-store')
+        useSessionStore.getState().addSession({
+          key: sessionKey,
+          agentId,
+          title: text.trim().slice(0, 40) || 'New Chat',
+          lastMessageAt: Date.now(),
+          messageCount: 0,
+        })
+        useSessionStore.getState().setActiveSession(sessionKey)
+      }
+
       addUserMessage(text)
 
       try {
         await ws.call('chat.send', {
           message: text,
           agentId,
-          sessionKey: activeSessionKey ?? undefined,
+          sessionKey,
           stream: true,
         })
       } catch (err) {
@@ -183,7 +230,20 @@ export function useChat() {
             id?: string
             role: Message['role']
             content?: string
+            thinking?: string
             timestamp?: number
+            tool_calls?: Array<{
+              id: string
+              function?: { name: string; arguments?: Record<string, unknown> }
+              name?: string
+              input?: Record<string, unknown>
+            }>
+            media_refs?: Array<{
+              mime_type?: string
+              content_type?: string
+              path?: string
+              url?: string
+            }>
           }>
         }
         if (result?.messages) {
@@ -193,6 +253,17 @@ export function useChat() {
               role: m.role,
               content: m.content ?? '',
               timestamp: m.timestamp ?? Date.now(),
+              thinkingText: m.thinking,
+              toolCalls: m.tool_calls?.map((tc) => ({
+                toolId: tc.id,
+                toolName: tc.function?.name ?? tc.name ?? 'unknown',
+                arguments: tc.function?.arguments ?? tc.input ?? {},
+                state: 'completed' as const,
+              })),
+              media: m.media_refs?.map((ref) => ({
+                type: ref.mime_type ?? ref.content_type ?? 'image',
+                url: ref.path ?? ref.url ?? '',
+              })),
             })),
           )
         }

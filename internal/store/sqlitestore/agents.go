@@ -221,16 +221,19 @@ func scanAgentRow(row agentRowScanner) (*store.AgentData, error) {
 	var d store.AgentData
 	var frontmatter sql.NullString
 	var toolsCfg, sandboxCfg, subagentsCfg, memoryCfg, compactionCfg, pruningCfg, otherCfg *[]byte
+	createdAt, updatedAt := scanTimePair()
 	err := row.Scan(
 		&d.ID, &d.AgentKey, &d.DisplayName, &frontmatter, &d.OwnerID, &d.Provider, &d.Model,
 		&d.ContextWindow, &d.MaxToolIterations, &d.Workspace, &d.RestrictToWorkspace,
 		&toolsCfg, &sandboxCfg, &subagentsCfg, &memoryCfg, &compactionCfg, &pruningCfg, &otherCfg,
 		&d.AgentType, &d.IsDefault, &d.Status, &d.BudgetMonthlyCents,
-		&d.CreatedAt, &d.UpdatedAt, &d.TenantID,
+		createdAt, updatedAt, &d.TenantID,
 	)
 	if err != nil {
 		return nil, err
 	}
+	d.CreatedAt = createdAt.Time
+	d.UpdatedAt = updatedAt.Time
 	if frontmatter.Valid {
 		d.Frontmatter = frontmatter.String
 	}

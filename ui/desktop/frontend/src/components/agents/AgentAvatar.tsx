@@ -10,7 +10,7 @@ const STATUS_CLASSES: Record<AgentStatus, string> = {
   online: 'bg-success',
   busy: 'bg-warning animate-pulse',
   offline: 'bg-error',
-  idle: 'border-2 border-[#9CA3AF] bg-transparent',
+  idle: 'border-2 border-idle bg-transparent',
 }
 
 export function AgentAvatar({ name, status, size = 'sm' }: AgentAvatarProps) {

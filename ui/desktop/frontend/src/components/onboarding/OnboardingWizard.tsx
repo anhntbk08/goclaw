@@ -1,61 +1,34 @@
-import { useEffect, useState } from 'react'
-import { getApiClient } from '../../lib/api'
-import { WelcomeStep } from './WelcomeStep'
-import { GatewayStep } from './GatewayStep'
+import { useState, useEffect } from 'react'
+import { useBootstrapStatus, type SetupStep } from '../../hooks/use-bootstrap-status'
+import { SetupStepper } from './SetupStepper'
 import { ProviderStep } from './ProviderStep'
 import { ModelVerifyStep } from './ModelVerifyStep'
 import { AgentStep } from './AgentStep'
-import { ReadyStep } from './ReadyStep'
+import type { ProviderData } from '../../types/provider'
 
 interface OnboardingWizardProps {
   onComplete: () => void
 }
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
-  const [step, setStep] = useState(1)
-  const [providerId, setProviderId] = useState<string | null>(null)
-  const [selectedModel, setSelectedModel] = useState('')
-  const [agentName, setAgentName] = useState('')
-  const [initialStep, setInitialStep] = useState<number | null>(null)
-  const totalSteps = 6
+  const { currentStep, loading, providers } = useBootstrapStatus()
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [createdProvider, setCreatedProvider] = useState<ProviderData | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+  const [initialized, setInitialized] = useState(false)
 
-  // Auto-detect existing setup and skip to the right step
+  // Initialize step from server state (only on first load)
   useEffect(() => {
-    const detect = async () => {
-      try {
-        const api = getApiClient()
-        if (!api) { setInitialStep(1); return }
-
-        // Check if agents exist → skip to Ready
-        const agentsRes = await api.get<{ agents?: { id: string; agent_key: string; display_name?: string }[] }>('/v1/agents')
-        if (agentsRes.agents && agentsRes.agents.length > 0) {
-          setAgentName(agentsRes.agents[0].display_name || agentsRes.agents[0].agent_key)
-          setInitialStep(6)
-          return
-        }
-
-        // Check if providers exist → skip to Model Verify
-        const providersRes = await api.get<{ providers?: { id: string }[] }>('/v1/providers')
-        if (providersRes.providers && providersRes.providers.length > 0) {
-          setProviderId(providersRes.providers[0].id)
-          setInitialStep(4) // Model Verify step
-          return
-        }
-
-        // Nothing exists → Provider step (gateway already running)
-        setInitialStep(3)
-      } catch {
-        setInitialStep(1)
-      }
+    if (loading || initialized) return
+    if (currentStep === ('complete' as SetupStep)) {
+      onComplete()
+      return
     }
-    detect()
-  }, [])
+    setStep(currentStep as 1 | 2 | 3)
+    setInitialized(true)
+  }, [currentStep, loading, initialized, onComplete])
 
-  useEffect(() => {
-    if (initialStep !== null) setStep(initialStep)
-  }, [initialStep])
-
-  if (initialStep === null) {
+  if (loading || !initialized) {
     return (
       <div className="h-dvh flex items-center justify-center bg-surface-primary">
         <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -63,59 +36,67 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     )
   }
 
+  const completedSteps: number[] = []
+  if (step > 1) completedSteps.push(1)
+  if (step > 2) completedSteps.push(2)
+
+  // Resume: find existing provider from server data (any enabled provider)
+  const activeProvider = createdProvider ?? providers.find((p) => p.enabled) ?? providers[0] ?? null
+
   return (
-    <div className="h-dvh flex flex-col bg-surface-primary">
-      {/* Progress bar */}
-      <div className="h-1 bg-surface-tertiary flex-shrink-0">
-        <div
-          className="h-full bg-accent transition-all duration-300"
-          style={{ width: `${(step / totalSteps) * 100}%` }}
-        />
-      </div>
+    <div className="h-dvh flex items-center justify-center bg-surface-primary px-4 py-8">
+      <div className="w-full max-w-2xl space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <img src="/goclaw-icon.svg" alt="GoClaw" className="mx-auto mb-4 h-16 w-16" />
+          <h1 className="text-4xl font-bold tracking-tight text-text-primary">GoClaw Setup</h1>
+          <p className="mt-2 text-sm text-text-muted">
+            Let's get your gateway up and running
+          </p>
+        </div>
 
-      <div className="flex justify-end px-8 pt-4 flex-shrink-0">
-        <span className="text-xs text-text-muted">{step} / {totalSteps}</span>
-      </div>
+        <SetupStepper currentStep={step} completedSteps={completedSteps} />
 
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
-        <div className="w-full max-w-lg">
-          {step === 1 && (
-            <WelcomeStep onNext={() => setStep(2)} onSkip={onComplete} />
-          )}
-          {step === 2 && (
-            <GatewayStep onNext={() => setStep(3)} onBack={() => setStep(1)} />
-          )}
-          {step === 3 && (
-            <ProviderStep
-              onNext={() => setStep(4)}
-              onBack={() => setStep(2)}
-              onProviderSaved={setProviderId}
-            />
-          )}
-          {step === 4 && (
-            <ModelVerifyStep
-              onNext={() => setStep(5)}
-              onBack={() => setStep(3)}
-              providerId={providerId}
-              onModelSelected={setSelectedModel}
-            />
-          )}
-          {step === 5 && (
-            <AgentStep
-              onNext={() => setStep(6)}
-              onBack={() => setStep(4)}
-              providerId={providerId}
-              selectedModel={selectedModel}
-              onAgentCreated={setAgentName}
-            />
-          )}
-          {step === 6 && (
-            <ReadyStep
-              onNext={onComplete}
-              onBack={() => setStep(5)}
-              agentName={agentName}
-            />
-          )}
+        {step === 1 && (
+          <ProviderStep
+            existingProvider={activeProvider}
+            onComplete={(provider) => {
+              setCreatedProvider(provider)
+              setStep(2)
+            }}
+          />
+        )}
+
+        {step === 2 && activeProvider && (
+          <ModelVerifyStep
+            provider={activeProvider}
+            initialModel={selectedModel}
+            onBack={() => setStep(1)}
+            onComplete={(model) => {
+              setSelectedModel(model)
+              setStep(3)
+            }}
+          />
+        )}
+
+        {step === 3 && activeProvider && (
+          <AgentStep
+            provider={activeProvider}
+            model={selectedModel}
+            onBack={() => setStep(2)}
+            onComplete={onComplete}
+          />
+        )}
+
+        {/* Skip setup link */}
+        <div className="text-center">
+          <button
+            type="button"
+            className="text-sm text-text-muted underline underline-offset-4 hover:text-text-secondary transition-colors"
+            onClick={onComplete}
+          >
+            Skip setup and go to dashboard
+          </button>
         </div>
       </div>
     </div>
