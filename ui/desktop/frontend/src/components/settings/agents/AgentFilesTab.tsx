@@ -131,9 +131,6 @@ export function AgentFilesTab({ agentId, agentKey, agentType }: AgentFilesTabPro
               {file.missing && (
                 <span className="text-[10px] text-text-muted ml-5.5 block">Not created</span>
               )}
-              {!file.missing && file.size != null && (
-                <span className="text-[10px] text-text-muted ml-5.5 block">{file.size} bytes</span>
-              )}
             </button>
           ))}
         </div>
