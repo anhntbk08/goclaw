@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
 import { CodeBlock } from './CodeBlock'
 import { FileButton } from './FileButton'
+import { AuthImage, downloadFile } from './AuthImage'
 import { getApiClient, isApiClientReady } from '../../lib/api'
 
 interface MarkdownRendererProps {
@@ -66,23 +67,14 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           )
         },
         img: ({ src, alt }) => {
-          const resolvedSrc = isFileLink(src) ? resolveFileUrl(src!) : src
-          const downloadUrl = resolvedSrc
-            ? resolvedSrc.includes('?') ? `${resolvedSrc}&download=true` : `${resolvedSrc}?download=true`
-            : undefined
-          return (
-            <span className="group/img relative inline-block">
-              <img
-                src={resolvedSrc}
-                alt={alt ?? ''}
-                className="max-w-full rounded-lg"
-                loading="lazy"
-              />
-              {downloadUrl && (
-                <a
-                  href={downloadUrl}
-                  download
-                  onClick={(e) => e.stopPropagation()}
+          if (isFileLink(src)) {
+            const resolvedSrc = resolveFileUrl(src!)
+            const filename = src!.split('/').pop()?.split('?')[0] ?? 'image'
+            return (
+              <span className="group/img relative inline-block">
+                <AuthImage src={resolvedSrc} alt={alt ?? ''} className="max-w-full rounded-lg" />
+                <button
+                  onClick={() => downloadFile(resolvedSrc, filename)}
                   className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity rounded bg-black/60 p-1.5 text-white hover:bg-black/80"
                 >
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -90,10 +82,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                </a>
-              )}
-            </span>
-          )
+                </button>
+              </span>
+            )
+          }
+          return <img src={src} alt={alt ?? ''} className="max-w-full rounded-lg" loading="lazy" />
         },
         ul: ({ children }) => <ul className="list-disc ml-5 mb-3 space-y-1">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal ml-5 mb-3 space-y-1">{children}</ol>,

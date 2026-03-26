@@ -78,6 +78,14 @@ class ApiClient {
     return this.baseUrl
   }
 
+  // Authenticated fetch for files — returns Response for text/blob extraction
+  async fetchFile(url: string): Promise<Response> {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseUrl}${url}`
+    return fetch(fullUrl, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    })
+  }
+
   async uploadFile<T = { url: string }>(path: string, file: File): Promise<T> {
     const url = `${this.baseUrl}${path}`
     const form = new FormData()

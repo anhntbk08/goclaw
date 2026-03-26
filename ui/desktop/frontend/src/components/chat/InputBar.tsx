@@ -265,11 +265,13 @@ export function InputBar({ onSend, onStop, disabled, isRunning, placeholder }: I
             {isRunning ? (
               <button
                 onClick={onStop}
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-error text-white hover:opacity-90 transition-opacity"
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-error text-white hover:opacity-90 transition-opacity"
                 title={t('stopGeneration')}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                {/* Spinning border */}
+                <span className="absolute inset-0 rounded-xl border-2 border-white/30 border-t-white animate-spin" />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="relative">
+                  <rect x="5" y="5" width="14" height="14" rx="3" />
                 </svg>
               </button>
             ) : (

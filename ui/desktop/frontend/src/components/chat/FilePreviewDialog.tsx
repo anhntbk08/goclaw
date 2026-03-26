@@ -3,6 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { MarkdownRenderer } from './MarkdownRenderer'
+import { getApiClient, isApiClientReady } from '../../lib/api'
+import { AuthImage, downloadFile } from './AuthImage'
+
+// Strip ?ft= token and timestamps from filename for display
+function cleanFilename(name: string): string {
+  // Remove query params
+  const base = name.split('?')[0]
+  // Remove timestamp suffix: "file.1774537056.md" → "file.md"
+  return base.replace(/\.\d{9,}(\.\w+)$/, '$1')
+}
 
 interface FilePreviewDialogProps {
   url: string
@@ -63,7 +73,10 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     let cancelled = false
     setTextContent(null)
     setLoadError(false)
-    fetch(url)
+    const doFetch = isApiClientReady()
+      ? getApiClient().fetchFile(url)
+      : fetch(url)
+    doFetch
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.text()
@@ -83,12 +96,12 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  const downloadUrl = url.includes('?') ? `${url}&download=true` : `${url}?download=true`
+  const displayName = cleanFilename(filename)
 
   function renderContent() {
     if (isImage(filename, mimeType)) {
       return (
-        <img src={url} alt={filename} className="max-w-full max-h-[70vh] object-contain mx-auto rounded-lg" />
+        <AuthImage src={url} alt={displayName} className="max-w-full max-h-[70vh] object-contain mx-auto rounded-lg" />
       )
     }
     if (isVideo(filename, mimeType)) {
@@ -134,13 +147,12 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     return (
       <div className="p-6 flex flex-col items-center gap-3 text-text-secondary">
         <p className="text-sm">{t('selectFileToView')}</p>
-        <a
-          href={downloadUrl}
-          download={filename}
+        <button
+          onClick={() => downloadFile(url, displayName)}
           className="inline-flex items-center gap-2 rounded-lg bg-accent/10 px-4 py-2 text-sm text-accent hover:bg-accent/20 transition-colors"
         >
           {t('download')}
-        </a>
+        </button>
       </div>
     )
   }
@@ -156,10 +168,10 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
       >
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-surface-secondary">
-          <span className="flex-1 text-sm font-medium text-text-primary truncate">{filename}</span>
-          <a
-            href={downloadUrl}
-            download={filename}
+          <span className="flex-1 text-sm font-medium text-text-primary truncate">{displayName}</span>
+          <button
+            type="button"
+            onClick={() => downloadFile(url, displayName)}
             title={t('download')}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           >
@@ -168,7 +180,7 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-          </a>
+          </button>
           <button
             type="button"
             title={t('close')}
