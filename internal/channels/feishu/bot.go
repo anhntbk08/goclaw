@@ -188,8 +188,17 @@ func (c *Channel) handleMessageEvent(ctx context.Context, event *MessageEvent) {
 		}
 	}
 
-	// 11. Process media: STT transcription, document extraction, build tags
+	// 10b. Collect media from pending history (files downloaded by earlier non-mentioned messages).
 	var mediaFiles []bus.MediaFile
+	if mc.ChatType == "group" && c.historyLimit > 0 {
+		if histMediaPaths := c.groupHistory.CollectMedia(chatID); len(histMediaPaths) > 0 {
+			for _, p := range histMediaPaths {
+				mediaFiles = append(mediaFiles, bus.MediaFile{Path: p}) // cannot use append(slice, other...) — different types
+			}
+		}
+	}
+
+	// 11. Process media: STT transcription, document extraction, build tags
 	if len(mediaList) > 0 {
 		var extraContent string
 		for i := range mediaList {
