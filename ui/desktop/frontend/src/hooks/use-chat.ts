@@ -5,10 +5,14 @@ import { useChatStore } from '../stores/chat-store'
 import { useSessionStore } from '../stores/session-store'
 import type { AttachedFile } from '../components/chat/InputBar'
 
-// Convert any file path to /v1/files/{basename} URL for serving
+// Convert any file path to /v1/files/ URL for serving.
+// Absolute paths (from media_refs.path) use the full path so the backend
+// can resolve the file directly without findInWorkspace fallback.
 function toFileUrl(path: string): string {
   if (!path) return ''
   if (path.startsWith('/v1/files/') || path.includes('/v1/files/')) return resolveBase(path)
+  // Absolute path — preserve full path for direct file serving
+  if (path.startsWith('/')) return resolveBase(`/v1/files${path}`)
   const basename = path.split('/').pop() ?? path
   return resolveBase(`/v1/files/${basename}`)
 }

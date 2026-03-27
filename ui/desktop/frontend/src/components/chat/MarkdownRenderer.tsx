@@ -8,6 +8,8 @@ import { getApiClient, isApiClientReady } from '../../lib/api'
 
 interface MarkdownRendererProps {
   content: string
+  /** Base URL for resolving relative paths (e.g. images in .md files) */
+  baseUrl?: string
 }
 
 const LOCAL_FILE_EXT_RE = /\.(png|jpg|jpeg|gif|webp|svg|bmp|mp3|wav|ogg|flac|aac|m4a|mp4|webm|mkv|avi|mov|pdf|doc|docx|xls|xlsx|csv|txt|md|json|zip)$/i
@@ -19,18 +21,25 @@ function isFileLink(href: string | undefined): boolean {
   return false
 }
 
-function resolveFileUrl(path: string): string {
+function resolveFileUrl(path: string, baseUrl?: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  // Convert relative/absolute path to /v1/files/{basename}
-  const basename = path.split('/').pop() ?? path
-  const filePath = path.includes('/v1/files/') ? path : `/v1/files/${basename}`
-  if (isApiClientReady()) {
-    return getApiClient().getBaseUrl() + filePath
+  // Already a /v1/files/ URL — use as-is
+  if (path.includes('/v1/files/')) {
+    if (isApiClientReady()) return getApiClient().getBaseUrl() + path
+    return path
   }
+  // Relative path with baseUrl — resolve against the base directory
+  if (baseUrl && !path.startsWith('/')) {
+    const baseDir = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1)
+    return baseDir + path
+  }
+  // Absolute path — preserve full path for direct file serving
+  const filePath = path.startsWith('/') ? `/v1/files${path}` : `/v1/files/${path.split('/').pop() ?? path}`
+  if (isApiClientReady()) return getApiClient().getBaseUrl() + filePath
   return filePath
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, baseUrl }: MarkdownRendererProps) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -58,7 +67,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         a: ({ children, href }) => {
           if (isFileLink(href)) {
             const filename = decodeURIComponent(href!.split('/').pop() ?? 'file')
-            return <FileButton url={resolveFileUrl(href!)} filename={filename} />
+            return <FileButton url={resolveFileUrl(href!, baseUrl)} filename={filename} />
           }
           return (
             <a href={href} className="text-accent hover:underline" target="_blank" rel="noopener noreferrer">
@@ -67,8 +76,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           )
         },
         img: ({ src, alt }) => {
-          if (isFileLink(src)) {
-            const resolvedSrc = resolveFileUrl(src!)
+          if (isFileLink(src) || (baseUrl && src && !src.startsWith('http'))) {
+            const resolvedSrc = resolveFileUrl(src!, baseUrl)
             const filename = src!.split('/').pop()?.split('?')[0] ?? 'image'
             return (
               <span className="group/img relative inline-block">

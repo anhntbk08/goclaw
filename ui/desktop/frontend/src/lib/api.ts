@@ -78,12 +78,18 @@ class ApiClient {
     return this.baseUrl
   }
 
-  // Authenticated fetch for files — returns Response for text/blob extraction
+  /** Fetch a file with Bearer auth. Use for URLs without ?ft= token (e.g. media_refs). */
   async fetchFile(url: string): Promise<Response> {
     const fullUrl = url.startsWith('http') ? url : `${this.baseUrl}${url}`
     return fetch(fullUrl, {
       headers: { Authorization: `Bearer ${this.token}` },
     })
+  }
+
+  /** Sign a file path, returning a URL with ?ft= token for unauthenticated access. */
+  async signFileUrl(filePath: string): Promise<string> {
+    const res = await this.post<{ url: string }>('/v1/files/sign', { path: filePath })
+    return `${this.baseUrl}${res.url}`
   }
 
   async uploadFile<T = { url: string }>(path: string, file: File): Promise<T> {

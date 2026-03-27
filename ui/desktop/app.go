@@ -5,12 +5,18 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/nextlevelbuilder/goclaw/cmd"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App holds Wails application state and embedded gateway lifecycle.
@@ -50,6 +56,10 @@ func (a *App) startup(ctx context.Context) {
 	os.Setenv("GOCLAW_GATEWAY_TOKEN", gwToken)
 	os.Setenv("GOCLAW_STORAGE_BACKEND", "sqlite")
 	os.Setenv("GOCLAW_DESKTOP", "1")
+	// Bind to localhost only — desktop has no reason to expose on LAN.
+	if os.Getenv("GOCLAW_HOST") == "" {
+		os.Setenv("GOCLAW_HOST", "127.0.0.1")
+	}
 	slog.Info("desktop secrets configured", "token_len", len(gwToken), "token_prefix", gwToken[:min(8, len(gwToken))])
 
 	// Ensure data directory exists.
@@ -133,4 +143,74 @@ func (a *App) IsGatewayReady() bool {
 // GetVersion returns the embedded gateway version string.
 func (a *App) GetVersion() string {
 	return cmd.Version
+}
+
+// OpenFile opens a local file with the system's default application.
+func (a *App) OpenFile(path string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", path).Start()
+	case "linux":
+		return exec.Command("xdg-open", path).Start()
+	default: // windows
+		return exec.Command("cmd", "/c", "start", "", path).Start()
+	}
+}
+
+// SaveFile opens a Save As dialog and copies the source file to the chosen location.
+func (a *App) SaveFile(srcPath string) error {
+	dest, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		DefaultFilename: filepath.Base(srcPath),
+		Title:           "Save File",
+	})
+	if err != nil || dest == "" {
+		return err
+	}
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, src)
+	return err
+}
+
+// DownloadURL fetches a URL with Bearer auth and opens a Save As dialog.
+func (a *App) DownloadURL(url, defaultFilename string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	// Use gateway token for local API calls
+	if strings.Contains(url, "localhost") || strings.Contains(url, "127.0.0.1") {
+		req.Header.Set("Authorization", "Bearer "+a.gatewayToken)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	dest, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		DefaultFilename: defaultFilename,
+		Title:           "Save File",
+	})
+	if err != nil || dest == "" {
+		return err
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, resp.Body)
+	return err
 }

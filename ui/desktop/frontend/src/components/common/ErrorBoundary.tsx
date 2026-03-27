@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <h2 className="text-lg font-semibold text-text-primary select-none">Something went wrong</h2>
             <p className="text-sm text-text-muted break-all">{this.state.error?.message}</p>
             <button
-              onClick={() => this.setState({ hasError: false, error: null })}
+              onClick={() => window.location.reload()}
               className="select-none px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
             >
               Try Again

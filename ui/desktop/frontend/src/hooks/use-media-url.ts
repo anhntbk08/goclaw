@@ -1,23 +1,30 @@
 import { useState, useEffect } from 'react'
 import { getOrFetchUrl } from '../lib/media-cache'
 
-/** Returns a cached blob ObjectURL for the given authenticated media URL.
- *  Fetches with Bearer auth, caches as blob for 5 minutes.
- *  Returns undefined while loading. */
-export function useMediaUrl(url: string | undefined): string | undefined {
-  const [blobUrl, setBlobUrl] = useState<string | undefined>(undefined)
+/** Returns a cached blob ObjectURL for the given signed media URL.
+ *  On first render returns the signed URL as-is (no blank frame),
+ *  then swaps to blob URL once fetched. Prevents flicker on session switch. */
+export function useMediaUrl(signedUrl: string | undefined): string | undefined {
+  // Only show signed (?ft=) URLs immediately — others need Bearer auth fetch first
+  const [url, setUrl] = useState(() =>
+    signedUrl?.includes('ft=') ? signedUrl : undefined,
+  )
 
   useEffect(() => {
-    if (!url) {
-      setBlobUrl(undefined)
+    if (!signedUrl) {
+      setUrl(undefined)
       return
     }
+    // Show signed URL immediately (browser can load it); others wait for blob
+    if (signedUrl.includes('ft=')) setUrl(signedUrl)
+    else setUrl(undefined)
+
     let cancelled = false
-    getOrFetchUrl(url).then((resolved) => {
-      if (!cancelled && resolved) setBlobUrl(resolved)
+    getOrFetchUrl(signedUrl).then((resolved) => {
+      if (!cancelled) setUrl(resolved)
     })
     return () => { cancelled = true }
-  }, [url])
+  }, [signedUrl])
 
-  return blobUrl
+  return url
 }

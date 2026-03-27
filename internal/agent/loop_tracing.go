@@ -70,8 +70,12 @@ func (l *Loop) emitLLMSpanStart(ctx context.Context, start time.Time, iteration 
 		span.TenantID = store.MasterTenantID
 	}
 
-	// Verbose mode: include input messages (same stripping as emitLLMSpan).
-	if collector.Verbose() && len(messages) > 0 {
+	// Include input messages preview — verbose mode uses full context, normal truncates to 500.
+	if len(messages) > 0 {
+		previewLimit := 2000
+		if collector.Verbose() {
+			previewLimit = 100000
+		}
 		stripped := make([]providers.Message, len(messages))
 		copy(stripped, messages)
 		for i := range stripped {
@@ -84,7 +88,7 @@ func (l *Loop) emitLLMSpanStart(ctx context.Context, start time.Time, iteration 
 			}
 		}
 		if b, err := json.Marshal(stripped); err == nil {
-			span.InputPreview = truncateStr(string(b), 100000)
+			span.InputPreview = truncateStr(string(b), previewLimit)
 		}
 	}
 
@@ -173,7 +177,7 @@ func (l *Loop) emitToolSpanStart(ctx context.Context, start time.Time, toolName,
 		return uuid.Nil
 	}
 
-	previewLimit := 500
+	previewLimit := 2000
 	if collector.Verbose() {
 		previewLimit = 100000
 	}
@@ -222,7 +226,7 @@ func (l *Loop) emitToolSpanEnd(ctx context.Context, spanID uuid.UUID, start time
 	}
 
 	now := time.Now().UTC()
-	previewLimit := 500
+	previewLimit := 2000
 	if collector.Verbose() {
 		previewLimit = 100000
 	}
@@ -282,7 +286,7 @@ func (l *Loop) emitAgentSpanStart(ctx context.Context, agentSpanID uuid.UUID, st
 		return
 	}
 
-	previewLimit := 500
+	previewLimit := 2000
 	if collector.Verbose() {
 		previewLimit = 100000
 	}
@@ -358,11 +362,13 @@ func truncateStr(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
+	// Keep the tail — recent context is more useful for debugging.
+	start := len(s) - maxLen
 	// Don't cut in the middle of a multi-byte rune
-	for maxLen > 0 && !utf8.RuneStart(s[maxLen]) {
-		maxLen--
+	for start < len(s) && !utf8.RuneStart(s[start]) {
+		start++
 	}
-	return s[:maxLen] + "..."
+	return "..." + s[start:]
 }
 
 // EstimateTokens returns a rough token estimate for a slice of messages.

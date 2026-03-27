@@ -30,10 +30,10 @@ export function ImageLightbox(props: ImageLightboxProps) {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') { e.preventDefault(); onClose() }
       if (isGallery) {
-        if (e.key === 'ArrowLeft' && canPrev) onNavigate(currentIndex - 1)
-        if (e.key === 'ArrowRight' && canNext) onNavigate(currentIndex + 1)
+        if (e.key === 'ArrowLeft' && canPrev) { e.preventDefault(); onNavigate(currentIndex - 1) }
+        if (e.key === 'ArrowRight' && canNext) { e.preventDefault(); onNavigate(currentIndex + 1) }
       }
     },
     [onClose, isGallery, canPrev, canNext, onNavigate, currentIndex],

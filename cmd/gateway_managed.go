@@ -177,7 +177,7 @@ func wireExtras(
 				if c, ok := m["content"].(string); ok && strings.Contains(c, "/v1/") {
 					m["content"] = httpapi.SignFileURLs(c, secret)
 				}
-				// Convert media local paths → signed /v1/files/basename?ft=hash
+				// Convert media local paths → signed /v1/files/{full_path}?ft=hash
 				if rawMedia, ok := m["media"].([]agent.MediaResult); ok {
 					// Clone slice — the original is shared with RunResult.Media;
 					// mutating in-place corrupts paths for downstream consumers
@@ -185,8 +185,10 @@ func wireExtras(
 					signed := make([]agent.MediaResult, len(rawMedia))
 					for i, mr := range rawMedia {
 						signed[i] = mr
-						basename := filepath.Base(mr.Path)
-						url := "/v1/files/" + basename
+						// Use full path so backend resolves directly via os.Stat,
+						// no findInWorkspace fallback needed.
+						urlPath := strings.TrimPrefix(filepath.Clean(mr.Path), "/")
+						url := "/v1/files/" + urlPath
 						ft := httpapi.SignFileToken(url, secret, httpapi.FileTokenTTL)
 						signed[i].Path = url + "?ft=" + ft
 					}

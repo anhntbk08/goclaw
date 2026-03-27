@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { MarkdownRenderer } from './MarkdownRenderer'
-import { getApiClient, isApiClientReady } from '../../lib/api'
 import { AuthImage, downloadFile } from './AuthImage'
+import { getApiClient, isApiClientReady } from '../../lib/api'
 
 // Strip ?ft= token and timestamps from filename for display
 function cleanFilename(name: string): string {
@@ -73,9 +73,9 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     let cancelled = false
     setTextContent(null)
     setLoadError(false)
-    const doFetch = isApiClientReady()
-      ? getApiClient().fetchFile(url)
-      : fetch(url)
+    // Use Bearer auth for URLs without ?ft= token (e.g. from media_refs)
+    const doFetch = url.includes('ft=') ? fetch(url)
+      : isApiClientReady() ? getApiClient().fetchFile(url) : fetch(url)
     doFetch
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -118,9 +118,15 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
         return <p className="text-text-muted text-sm p-4">{t('loading')}</p>
       }
       if (isMarkdown(filename)) {
+        // Resolve relative image/link paths in markdown against the file's directory URL
+        const baseDir = url.substring(0, url.lastIndexOf('/') + 1)
+        const resolved = textContent.replace(
+          /(!?\[.*?\])\((?!https?:\/\/|\/|#)(.*?)\)/g,
+          (_, prefix, relPath) => `${prefix}(${baseDir}${relPath})`,
+        )
         return (
           <div className="p-4 overflow-y-auto max-h-[70vh]">
-            <MarkdownRenderer content={textContent} />
+            <MarkdownRenderer content={resolved} />
           </div>
         )
       }
@@ -163,7 +169,7 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
       onClick={onClose}
     >
       <div
-        className="relative bg-surface-primary border border-border rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden"
+        className="relative bg-surface-primary border border-border rounded-xl shadow-2xl w-full max-w-5xl mx-4 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"mime"
@@ -33,6 +34,29 @@ func NewFilesHandler(workspace, dataDir string) *FilesHandler {
 // RegisterRoutes registers the file serving route.
 func (h *FilesHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/files/{path...}", h.auth(h.handleServe))
+	mux.HandleFunc("POST /v1/files/sign", h.handleSign)
+}
+
+// handleSign accepts a JSON body with a "path" field (absolute file path),
+// returns a signed /v1/files/ URL with ?ft= token. Requires Bearer auth.
+func (h *FilesHandler) handleSign(w http.ResponseWriter, r *http.Request) {
+	provided := extractBearerToken(r)
+	authedReq, ok := requireAuthBearer("", provided, w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(authedReq.Body).Decode(&body); err != nil || body.Path == "" {
+		http.Error(w, `{"error":"path required"}`, http.StatusBadRequest)
+		return
+	}
+	urlPath := "/v1/files/" + strings.TrimPrefix(filepath.Clean(body.Path), "/")
+	ft := SignFileToken(urlPath, FileSigningKey(), FileTokenTTL)
+	writeJSON(w, http.StatusOK, map[string]string{
+		"url": urlPath + "?ft=" + ft,
+	})
 }
 
 func (h *FilesHandler) auth(next http.HandlerFunc) http.HandlerFunc {
@@ -108,6 +132,18 @@ func (h *FilesHandler) handleServe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(absPath)
+	if err != nil && !os.IsNotExist(err) {
+		http.NotFound(w, r)
+		return
+	}
+	// Fuzzy match: generated files have timestamp suffixes (e.g. "file_20260326-232559_269000.png")
+	// but LLM may reference them without timestamp (e.g. "file.png"). Try prefix match in same dir.
+	if err != nil {
+		if resolved := fuzzyMatchInDir(absPath); resolved != "" {
+			absPath = resolved
+			info, err = os.Stat(absPath)
+		}
+	}
 	if err != nil || info.IsDir() {
 		// Fallback: search workspace for file by basename (handles LLM-hallucinated paths).
 		// Generated media filenames include timestamps and are globally unique.
@@ -162,8 +198,16 @@ func (h *FilesHandler) findInWorkspace(workspace, basename string) string {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			// Allow workspace root + known directory structures
-			if name == "teams" || name == "generated" || name == "system" || name == ".uploads" || path == workspace {
+			// Allow workspace root
+			if path == workspace {
+				return nil
+			}
+			// Allow direct children of workspace root (agent workspace dirs like "quill", "goclaw")
+			if filepath.Dir(path) == workspace {
+				return nil
+			}
+			// Allow known directory structures
+			if name == "teams" || name == "generated" || name == "system" || name == "ws" || name == ".uploads" || name == "tenants" {
 				return nil
 			}
 			// Allow date directories (e.g. 2026-03-20)
@@ -185,6 +229,32 @@ func (h *FilesHandler) findInWorkspace(workspace, basename string) string {
 	return found
 }
 
+// fuzzyMatchInDir handles LLM-hallucinated filenames missing timestamp suffixes.
+// E.g. requested "file.png" matches "file_20260326-232559_269000.png" in the same directory.
+func fuzzyMatchInDir(absPath string) string {
+	dir := filepath.Dir(absPath)
+	base := filepath.Base(absPath)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext) // "smart-home-cover"
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Match: starts with stem, has same extension, has timestamp between
+		// e.g. "smart-home-cover_20260326-232444_269000.png"
+		if strings.HasPrefix(name, stem) && strings.HasSuffix(name, ext) && name != base {
+			return filepath.Join(dir, name)
+		}
+	}
+	return ""
+}
+
 func isNumeric(s string) bool {
 	for _, c := range s {
 		if c < '0' || c > '9' {
@@ -193,3 +263,4 @@ func isNumeric(s string) bool {
 	}
 	return len(s) > 0
 }
+

@@ -114,10 +114,10 @@ export function Combobox({ value, onChange, options, placeholder, loading, allow
         onKeyDown={handleKeyDown}
         placeholder={loading ? 'Loading...' : placeholder}
         disabled={disabled || loading}
-        className="w-full bg-surface-tertiary border border-border rounded-lg px-3 py-2.5 pr-8 text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full bg-surface-tertiary border border-border rounded-lg px-2.5 py-1.5 pr-7 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
       />
       {/* Dropdown chevron */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
+      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
       </div>
 

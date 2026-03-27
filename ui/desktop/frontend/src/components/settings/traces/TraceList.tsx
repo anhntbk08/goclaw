@@ -7,12 +7,28 @@ import { Combobox } from '../../common/Combobox'
 import { TraceDetailDialog } from './TraceDetailDialog'
 import type { TraceData } from '../../../types/trace'
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return '< 1s'
+function formatDuration(ms: number | undefined | null, startTime?: string, endTime?: string): string {
+  if (ms == null || isNaN(ms) || ms === 0) {
+    if (startTime && endTime) {
+      const computed = new Date(endTime).getTime() - new Date(startTime).getTime()
+      if (!isNaN(computed) && computed > 0) ms = computed
+      else return '—'
+    } else {
+      return '—'
+    }
+  }
+  if (ms < 1000) return `${ms}ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
   const min = Math.floor(ms / 60000)
   const sec = Math.round((ms % 60000) / 1000)
   return `${min}m ${sec}s`
+}
+
+function formatTokens(count: number | null | undefined): string {
+  if (count == null) return '0'
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`
+  return count.toString()
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -68,17 +84,17 @@ function TraceRow({ trace, onClick }: { trace: TraceData; onClick: () => void })
 
       {/* Duration */}
       <td className="px-4 py-3 text-xs text-text-muted">
-        {formatDuration(trace.duration_ms)}
+        {formatDuration(trace.duration_ms, trace.start_time, trace.end_time)}
       </td>
 
       {/* Tokens */}
       <td className="px-4 py-3">
         <div className="font-mono text-xs text-text-primary">
-          {trace.total_input_tokens}/{trace.total_output_tokens}
+          {formatTokens(trace.total_input_tokens)} / {formatTokens(trace.total_output_tokens)}
         </div>
         {(cacheRead ?? 0) > 0 && (
           <div className="text-[11px] text-emerald-600 dark:text-emerald-400">
-            +{cacheRead} {t('cached')}
+            {formatTokens(cacheRead)} {t('cached')}
           </div>
         )}
       </td>

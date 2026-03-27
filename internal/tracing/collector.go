@@ -17,7 +17,7 @@ import (
 const (
 	defaultFlushInterval = 5 * time.Second
 	defaultBufferSize    = 1000
-	previewMaxLen        = 500
+	previewMaxLen        = 2000
 )
 
 // SpanExporter is implemented by backends that receive span data alongside

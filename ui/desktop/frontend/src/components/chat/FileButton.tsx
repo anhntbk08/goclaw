@@ -41,23 +41,25 @@ export function FileButton({ url, filename, mimeType, size }: FileButtonProps) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setPreviewOpen(true)}
-        className="inline-flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-surface-tertiary/30 transition-colors text-sm cursor-pointer max-w-xs"
-      >
-        <span className="text-base leading-none">{fileIcon(displayName)}</span>
-        <span className="text-text-primary truncate flex-1 text-left">
-          {truncateName(displayName)}
-        </span>
-        {size !== undefined && (
-          <span className="text-text-muted text-xs shrink-0">{formatFileSize(size)}</span>
-        )}
+      <div className="inline-flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-surface-tertiary/30 transition-colors text-sm max-w-xs">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen(true)}
+          className="inline-flex items-center gap-2 min-w-0 cursor-pointer"
+        >
+          <span className="text-base leading-none">{fileIcon(displayName)}</span>
+          <span className="text-text-primary truncate text-left">
+            {truncateName(displayName)}
+          </span>
+          {size !== undefined && (
+            <span className="text-text-muted text-xs shrink-0">{formatFileSize(size)}</span>
+          )}
+        </button>
         <button
           type="button"
           title={t('download')}
-          onClick={(e) => { e.stopPropagation(); downloadFile(url, displayName) }}
-          className="text-text-muted hover:text-text-primary transition-colors shrink-0"
+          onClick={() => downloadFile(url, displayName)}
+          className="text-text-muted hover:text-text-primary transition-colors shrink-0 cursor-pointer"
         >
           <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -65,7 +67,7 @@ export function FileButton({ url, filename, mimeType, size }: FileButtonProps) {
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
         </button>
-      </button>
+      </div>
 
       {previewOpen && (
         <FilePreviewDialog

@@ -1,11 +1,10 @@
-/** Client-side blob cache for authenticated media URLs.
- *  Desktop uses Bearer token auth (not ?ft= signed URLs),
- *  so all file fetches must include auth headers.
- *  Cache key = clean path, value = blob ObjectURL with 5-min TTL. */
-
 import { getApiClient, isApiClientReady } from './api'
 
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+/** Client-side blob cache for file URLs.
+ *  Supports both ?ft= signed token URLs and Bearer-auth URLs (media_refs).
+ *  Cache key = clean path (without ?ft=), value = blob ObjectURL with 5-min TTL. */
+
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes, matches backend FileTokenTTL
 
 interface CacheEntry {
   objectUrl: string
@@ -15,9 +14,9 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>()
 const inflight = new Map<string, Promise<string>>()
 
-/** Strip query params from URL for cache key. */
-function cleanKey(url: string): string {
-  return url.split('?')[0]
+/** Strip ?ft=... or &ft=... from URL, return clean path for cache key. */
+export function stripFt(url: string): string {
+  return url.replace(/[?&]ft=[^&\s)"'<>]*/g, '').replace(/[?&]$/, '')
 }
 
 /** Evict expired entries and revoke their ObjectURLs. */
@@ -31,33 +30,40 @@ function evictExpired() {
   }
 }
 
-/** Get cached blob URL or fetch with auth and cache it.
- *  Returns blob ObjectURL on success, empty string on failure. */
-export async function getOrFetchUrl(url: string): Promise<string> {
+/** Get cached ObjectURL or fetch blob and cache it.
+ *  Returns the blob ObjectURL on success, or the original signed URL on failure. */
+export async function getOrFetchUrl(signedUrl: string): Promise<string> {
   evictExpired()
 
-  const key = cleanKey(url)
+  const key = stripFt(signedUrl)
   const cached = cache.get(key)
   if (cached && cached.expiresAt > Date.now()) {
     return cached.objectUrl
   }
 
-  // Deduplicate concurrent fetches
+  // Deduplicate concurrent fetches for the same key
   const existing = inflight.get(key)
   if (existing) return existing
 
   const promise = (async () => {
     try {
-      const res = isApiClientReady()
-        ? await getApiClient().fetchFile(url)
-        : await fetch(url)
-      if (!res.ok) return ''
+      // For URLs without ?ft= token, sign first via API then fetch
+      let fetchUrl = signedUrl
+      if (!signedUrl.includes('ft=') && isApiClientReady()) {
+        // Extract absolute path from /v1/files/{path} URL
+        const match = signedUrl.match(/\/v1\/files\/(.+?)(?:\?|$)/)
+        if (match) {
+          fetchUrl = await getApiClient().signFileUrl('/' + decodeURIComponent(match[1]))
+        }
+      }
+      const res = await fetch(fetchUrl)
+      if (!res.ok) return signedUrl
       const blob = await res.blob()
       const objectUrl = URL.createObjectURL(blob)
       cache.set(key, { objectUrl, expiresAt: Date.now() + CACHE_TTL_MS })
       return objectUrl
     } catch {
-      return ''
+      return signedUrl // graceful degradation
     } finally {
       inflight.delete(key)
     }
@@ -67,7 +73,12 @@ export async function getOrFetchUrl(url: string): Promise<string> {
   return promise
 }
 
-/** Revoke all cached ObjectURLs. */
+/** Append ?download=true to a URL for Content-Disposition: attachment. */
+export function toDownloadUrl(url: string): string {
+  return url + (url.includes('?') ? '&' : '?') + 'download=true'
+}
+
+/** Revoke all cached ObjectURLs (call on disconnect). */
 export function revokeAll() {
   for (const entry of cache.values()) {
     URL.revokeObjectURL(entry.objectUrl)
