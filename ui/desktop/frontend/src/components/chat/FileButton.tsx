@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { FilePreviewDialog } from './FilePreviewDialog'
 import { downloadFile } from './AuthImage'
@@ -41,7 +42,7 @@ export function FileButton({ url, filename, mimeType, size }: FileButtonProps) {
 
   return (
     <>
-      <div className="inline-flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-surface-tertiary/30 transition-colors text-sm max-w-xs">
+      <span className="inline-flex items-center gap-2 border border-border rounded-lg px-3 py-2 hover:bg-surface-tertiary/30 transition-colors text-sm max-w-xs">
         <button
           type="button"
           onClick={() => setPreviewOpen(true)}
@@ -67,15 +68,16 @@ export function FileButton({ url, filename, mimeType, size }: FileButtonProps) {
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
         </button>
-      </div>
+      </span>
 
-      {previewOpen && (
+      {previewOpen && createPortal(
         <FilePreviewDialog
           url={url}
           filename={filename}
           mimeType={mimeType}
           onClose={() => setPreviewOpen(false)}
-        />
+        />,
+        document.body,
       )}
     </>
   )

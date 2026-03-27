@@ -55,7 +55,8 @@
     "offline": "Offline",
     "lightMode": "Light mode",
     "darkMode": "Dark mode",
-    "settings": "Settings"
+    "settings": "Settings",
+    "teams": "Teams"
   },
   "about": {
     "title": "GoClaw Lite",

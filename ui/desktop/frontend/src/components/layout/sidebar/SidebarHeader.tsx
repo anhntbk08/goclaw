@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAgents } from '../../../hooks/use-agents'
 import { useUiStore } from '../../../stores/ui-store'
 import { AgentAvatar } from '../../agents/AgentAvatar'
+import { EditionCompareModal } from '../../common/EditionCompareModal'
 
 const MAX_AGENTS_LITE = 5
 
@@ -9,6 +11,8 @@ export function SidebarHeader() {
   const { t } = useTranslation('agents')
   const { agents, selectedAgent, selectAgent } = useAgents()
   const openSettings = useUiStore((s) => s.openSettings)
+  const closeSettings = useUiStore((s) => s.closeSettings)
+  const [editionOpen, setEditionOpen] = useState(false)
 
   const atLimit = agents.length >= MAX_AGENTS_LITE
 
@@ -18,7 +22,12 @@ export function SidebarHeader() {
       <div className="flex items-center gap-2.5 px-1">
         <img src="/goclaw-icon.svg" alt="GoClaw" className="h-7 w-7" />
         <span className="text-base font-semibold text-text-primary">GoClaw</span>
-        <span className="text-[10px] font-medium bg-accent/15 text-accent px-1.5 py-0.5 rounded">Lite</span>
+        <button
+          onClick={() => setEditionOpen(true)}
+          className="text-[10px] font-medium bg-accent/15 text-accent px-1.5 py-0.5 rounded hover:bg-accent/25 transition-colors cursor-pointer"
+        >
+          Lite
+        </button>
       </div>
 
       {/* Section title + add button */}
@@ -43,7 +52,7 @@ export function SidebarHeader() {
         {agents.map((agent) => (
           <button
             key={agent.id}
-            onClick={() => selectAgent(agent.id)}
+            onClick={() => { selectAgent(agent.id); closeSettings() }}
             className={[
               'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors',
               selectedAgent?.id === agent.id
@@ -56,6 +65,9 @@ export function SidebarHeader() {
           </button>
         ))}
       </div>
+
+      {/* Edition comparison modal */}
+      <EditionCompareModal open={editionOpen} onClose={() => setEditionOpen(false)} />
     </div>
   )
 }

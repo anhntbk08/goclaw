@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type AppView = 'chat' | 'settings'
+export type AppView = 'chat' | 'settings' | 'team-board'
 export type SettingsTab = 'appearance' | 'providers' | 'agents' | 'mcp' | 'skills' | 'tools' | 'cron' | 'traces' | 'about'
 
 interface UiState {
@@ -13,6 +13,7 @@ interface UiState {
   onboarded: boolean
   activeView: AppView
   settingsTab: SettingsTab
+  activeTeamId: string | null
   toggleTheme: () => void
   setLocale: (locale: string) => void
   setTimezone: (tz: string) => void
@@ -24,6 +25,7 @@ interface UiState {
   setSettingsTab: (tab: SettingsTab) => void
   openSettings: (tab?: SettingsTab) => void
   closeSettings: () => void
+  openTeamBoard: (teamId: string) => void
 }
 
 export const useUiStore = create<UiState>()(
@@ -36,6 +38,7 @@ export const useUiStore = create<UiState>()(
       sidebarWidth: 260,
       onboarded: false,
       activeView: 'chat',
+      activeTeamId: null,
       settingsTab: 'appearance',
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
@@ -59,6 +62,8 @@ export const useUiStore = create<UiState>()(
         set((s) => ({ activeView: 'settings', settingsTab: tab ?? s.settingsTab })),
       closeSettings: () =>
         set({ activeView: 'chat' }),
+      openTeamBoard: (teamId) =>
+        set({ activeView: 'team-board', activeTeamId: teamId }),
     }),
     {
       name: 'goclaw-ui',

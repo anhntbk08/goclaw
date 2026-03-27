@@ -1078,7 +1078,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_logs_tenant ON activity_logs(tenant_id);
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS usage_snapshots (
-    id                  TEXT NOT NULL PRIMARY KEY,
+    id                  TEXT NOT NULL PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     bucket_hour         TEXT NOT NULL,
     agent_id            TEXT,
     provider            VARCHAR(50) NOT NULL DEFAULT '',

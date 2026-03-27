@@ -68,7 +68,7 @@ export function SessionList() {
                   ].join(' ')}
                 >
                   <button
-                    onClick={() => { setActiveSession(session.key); if (activeView === 'settings') closeSettings() }}
+                    onClick={() => { setActiveSession(session.key); if (activeView !== 'chat') closeSettings() }}
                     className={[
                       'flex-1 text-left px-2 py-1.5 text-xs truncate min-w-0',
                       activeSessionKey === session.key

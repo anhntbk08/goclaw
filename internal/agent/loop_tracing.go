@@ -70,12 +70,9 @@ func (l *Loop) emitLLMSpanStart(ctx context.Context, start time.Time, iteration 
 		span.TenantID = store.MasterTenantID
 	}
 
-	// Include input messages preview — verbose mode uses full context, normal truncates to 500.
+	// Include input messages preview as truncated JSON.
 	if len(messages) > 0 {
-		previewLimit := 2000
-		if collector.Verbose() {
-			previewLimit = 100000
-		}
+		previewLimit := previewLimitForVerbose(collector.Verbose())
 		stripped := make([]providers.Message, len(messages))
 		copy(stripped, messages)
 		for i := range stripped {
@@ -88,7 +85,7 @@ func (l *Loop) emitLLMSpanStart(ctx context.Context, start time.Time, iteration 
 			}
 		}
 		if b, err := json.Marshal(stripped); err == nil {
-			span.InputPreview = truncateStr(string(b), previewLimit)
+			span.InputPreview = tracing.TruncateJSON(string(b), previewLimit)
 		}
 	}
 
@@ -148,16 +145,12 @@ func (l *Loop) emitLLMSpanEnd(ctx context.Context, spanID uuid.UUID, start time.
 			}
 		}
 		updates["finish_reason"] = resp.FinishReason
-		verbose := collector.Verbose()
-		if verbose {
-			preview := resp.Content
-			if resp.Thinking != "" {
-				preview = "<thinking>\n" + resp.Thinking + "\n</thinking>\n" + resp.Content
-			}
-			updates["output_preview"] = truncateStr(preview, 100000)
-		} else {
-			updates["output_preview"] = truncateStr(resp.Content, 500)
+		limit := previewLimitForVerbose(collector.Verbose())
+		preview := resp.Content
+		if resp.Thinking != "" {
+			preview = "<thinking>\n" + resp.Thinking + "\n</thinking>\n" + resp.Content
 		}
+		updates["output_preview"] = tracing.TruncateMid(preview, limit)
 	}
 
 	collector.EmitSpanUpdate(spanID, traceID, updates)
@@ -177,10 +170,7 @@ func (l *Loop) emitToolSpanStart(ctx context.Context, start time.Time, toolName,
 		return uuid.Nil
 	}
 
-	previewLimit := 2000
-	if collector.Verbose() {
-		previewLimit = 100000
-	}
+	previewLimit := previewLimitForVerbose(collector.Verbose())
 
 	spanID := store.GenNewID()
 	span := store.SpanData{
@@ -191,7 +181,7 @@ func (l *Loop) emitToolSpanStart(ctx context.Context, start time.Time, toolName,
 		StartTime:    start,
 		ToolName:     toolName,
 		ToolCallID:   toolCallID,
-		InputPreview: truncateStr(input, previewLimit),
+		InputPreview: tracing.TruncateJSON(input, previewLimit),
 		Status:       store.SpanStatusRunning,
 		Level:        store.SpanLevelDefault,
 		CreatedAt:    start,
@@ -226,16 +216,13 @@ func (l *Loop) emitToolSpanEnd(ctx context.Context, spanID uuid.UUID, start time
 	}
 
 	now := time.Now().UTC()
-	previewLimit := 2000
-	if collector.Verbose() {
-		previewLimit = 100000
-	}
+	previewLimit := previewLimitForVerbose(collector.Verbose())
 
 	updates := map[string]any{
 		"end_time":       now,
 		"duration_ms":    int(now.Sub(start).Milliseconds()),
 		"status":         store.SpanStatusCompleted,
-		"output_preview": truncateStr(result.ForLLM, previewLimit),
+		"output_preview": tracing.TruncateMid(result.ForLLM, previewLimit),
 	}
 
 	if result.IsError {
@@ -286,10 +273,7 @@ func (l *Loop) emitAgentSpanStart(ctx context.Context, agentSpanID uuid.UUID, st
 		return
 	}
 
-	previewLimit := 2000
-	if collector.Verbose() {
-		previewLimit = 100000
-	}
+	previewLimit := previewLimitForVerbose(collector.Verbose())
 
 	spanName := l.id
 	span := store.SpanData{
@@ -302,7 +286,7 @@ func (l *Loop) emitAgentSpanStart(ctx context.Context, agentSpanID uuid.UUID, st
 		Level:        store.SpanLevelDefault,
 		Model:        l.model,
 		Provider:     l.provider.Name(),
-		InputPreview: truncateStr(inputPreview, previewLimit),
+		InputPreview: tracing.TruncateMid(inputPreview, previewLimit),
 		CreatedAt:    start,
 	}
 	// Nest under parent root span if this is an announce run.
@@ -345,16 +329,21 @@ func (l *Loop) emitAgentSpanEnd(ctx context.Context, agentSpanID uuid.UUID, star
 		updates["status"] = store.SpanStatusError
 		updates["error"] = runErr.Error()
 	} else if result != nil {
-		limit := 500
-		if collector.Verbose() {
-			limit = 100000
-		}
-		updates["output_preview"] = truncateStr(result.Content, limit)
+		limit := previewLimitForVerbose(collector.Verbose())
+		updates["output_preview"] = tracing.TruncateMid(result.Content, limit)
 		// Note: token counts are NOT set on agent spans to avoid double-counting
 		// with child llm_call spans. Trace aggregation sums only llm_call spans.
 	}
 
 	collector.EmitSpanUpdate(agentSpanID, traceID, updates)
+}
+
+// previewLimitForVerbose returns the preview character limit based on verbose mode.
+func previewLimitForVerbose(verbose bool) int {
+	if verbose {
+		return 200_000
+	}
+	return 40_000
 }
 
 func truncateStr(s string, maxLen int) string {

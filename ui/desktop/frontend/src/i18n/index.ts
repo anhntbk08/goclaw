@@ -15,6 +15,7 @@ import enMemory from './locales/en/memory.json'
 import enStorage from './locales/en/storage.json'
 import enSessions from './locales/en/sessions.json'
 import enDesktop from './locales/en/desktop.json'
+import enTeams from './locales/en/teams.json'
 
 // --- VI namespaces ---
 import viCommon from './locales/vi/common.json'
@@ -30,6 +31,7 @@ import viMemory from './locales/vi/memory.json'
 import viStorage from './locales/vi/storage.json'
 import viSessions from './locales/vi/sessions.json'
 import viDesktop from './locales/vi/desktop.json'
+import viTeams from './locales/vi/teams.json'
 
 // --- ZH namespaces ---
 import zhCommon from './locales/zh/common.json'
@@ -45,6 +47,7 @@ import zhMemory from './locales/zh/memory.json'
 import zhStorage from './locales/zh/storage.json'
 import zhSessions from './locales/zh/sessions.json'
 import zhDesktop from './locales/zh/desktop.json'
+import zhTeams from './locales/zh/teams.json'
 
 const STORAGE_KEY = 'goclaw:language'
 
@@ -63,22 +66,22 @@ i18n.use(initReactI18next).init({
       common: enCommon, chat: enChat, agents: enAgents, providers: enProviders,
       skills: enSkills, cron: enCron, mcp: enMcp, tools: enTools,
       traces: enTraces, memory: enMemory, storage: enStorage, sessions: enSessions,
-      desktop: enDesktop,
+      desktop: enDesktop, teams: enTeams,
     },
     vi: {
       common: viCommon, chat: viChat, agents: viAgents, providers: viProviders,
       skills: viSkills, cron: viCron, mcp: viMcp, tools: viTools,
       traces: viTraces, memory: viMemory, storage: viStorage, sessions: viSessions,
-      desktop: viDesktop,
+      desktop: viDesktop, teams: viTeams,
     },
     zh: {
       common: zhCommon, chat: zhChat, agents: zhAgents, providers: zhProviders,
       skills: zhSkills, cron: zhCron, mcp: zhMcp, tools: zhTools,
       traces: zhTraces, memory: zhMemory, storage: zhStorage, sessions: zhSessions,
-      desktop: zhDesktop,
+      desktop: zhDesktop, teams: zhTeams,
     },
   },
-  ns: ['common', 'chat', 'agents', 'providers', 'skills', 'cron', 'mcp', 'tools', 'traces', 'memory', 'storage', 'sessions', 'desktop'],
+  ns: ['common', 'chat', 'agents', 'providers', 'skills', 'cron', 'mcp', 'tools', 'traces', 'memory', 'storage', 'sessions', 'desktop', 'teams'],
   defaultNS: 'common',
   lng: getInitialLanguage(),
   fallbackLng: 'en',

@@ -61,11 +61,13 @@ function isText(filename: string, mimeType?: string): boolean {
   return /\.(txt|log|csv|conf|ini|env)$/i.test(filename)
 }
 
-export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePreviewDialogProps) {
+export function FilePreviewDialog({ url, filename: rawFilename, mimeType, onClose }: FilePreviewDialogProps) {
   const { t } = useTranslation('common')
   const [textContent, setTextContent] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
 
+  // Normalize: if filename is a full URL/path, extract the basename
+  const filename = (rawFilename.includes('/') ? rawFilename.split('/').pop() : rawFilename)?.split('?')[0] ?? rawFilename
   const needsTextFetch = isMarkdown(filename) || isCode(filename) || isText(filename, mimeType)
 
   useEffect(() => {
@@ -73,9 +75,12 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     let cancelled = false
     setTextContent(null)
     setLoadError(false)
-    // Use Bearer auth for URLs without ?ft= token (e.g. from media_refs)
-    const doFetch = url.includes('ft=') ? fetch(url)
-      : isApiClientReady() ? getApiClient().fetchFile(url) : fetch(url)
+    // For URLs without ?ft= token, sign them first to get a valid ft= token.
+    // This avoids tenant header issues with direct Bearer auth fetch.
+    // Fetch with Bearer auth via ApiClient.fetchFile (handles base URL + auth header).
+    const doFetch = isApiClientReady()
+      ? getApiClient().fetchFile(url)
+      : fetch(url)
     doFetch
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -112,7 +117,17 @@ export function FilePreviewDialog({ url, filename, mimeType, onClose }: FilePrev
     }
     if (needsTextFetch) {
       if (loadError) {
-        return <p className="text-text-secondary text-sm p-4">{t('errors.serverError')}</p>
+        return (
+          <div className="p-6 flex flex-col items-center gap-3 text-text-secondary">
+            <p className="text-sm">{t('errors.serverError', 'Failed to load file preview')}</p>
+            <button
+              onClick={() => downloadFile(url, displayName)}
+              className="inline-flex items-center gap-2 rounded-lg bg-accent/10 px-4 py-2 text-sm text-accent hover:bg-accent/20 transition-colors cursor-pointer"
+            >
+              {t('download', 'Download')}
+            </button>
+          </div>
+        )
       }
       if (textContent === null) {
         return <p className="text-text-muted text-sm p-4">{t('loading')}</p>

@@ -2,15 +2,18 @@ import { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChat } from '../../hooks/use-chat'
 import { useAgents } from '../../hooks/use-agents'
+import { useSessionStore } from '../../stores/session-store'
 import { ChatTopBar } from './ChatTopBar'
 import { MessageBubble } from './MessageBubble'
 import { ActivityIndicator } from './ActivityIndicator'
 import { InputBar, type AttachedFile } from './InputBar'
+import { TaskPanel } from './TaskPanel'
 
 export function ChatCanvas() {
   const { t } = useTranslation('common')
   const { messages, isRunning, activity, sendMessage } = useChat()
   const { selectedAgent } = useAgents()
+  const activeSessionKey = useSessionStore((s) => s.activeSessionKey)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -80,6 +83,9 @@ export function ChatCanvas() {
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Team task panel */}
+        <TaskPanel sessionKey={activeSessionKey} />
 
         {/* Input bar */}
         <InputBar

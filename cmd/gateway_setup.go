@@ -17,6 +17,7 @@ import (
 	"github.com/nextlevelbuilder/goclaw/internal/permissions"
 	"github.com/nextlevelbuilder/goclaw/internal/providers"
 	"github.com/nextlevelbuilder/goclaw/internal/sandbox"
+	"github.com/nextlevelbuilder/goclaw/internal/edition"
 	"github.com/nextlevelbuilder/goclaw/internal/skills"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
@@ -531,8 +532,9 @@ func setupSkillsSystem(
 		}
 	}
 
-	// Publish skill tool — lets agents register created skills in the database
-	if pgStores.Skills != nil {
+	// Publish skill tool — lets agents register created skills in the database.
+	// Disabled in lite edition: agents should not self-manage skills on desktop.
+	if pgStores.Skills != nil && edition.Current().TeamFullMode {
 		if manageStore, ok := pgStores.Skills.(store.SkillManageStore); ok {
 			storeDirs := pgStores.Skills.Dirs()
 			if len(storeDirs) > 0 {

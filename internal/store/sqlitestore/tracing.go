@@ -234,3 +234,19 @@ func (s *SQLiteTracingStore) GetCostSummary(ctx context.Context, opts store.Cost
 	}
 	return result, rows.Err()
 }
+
+// DeleteTracesOlderThan deletes traces and their spans older than cutoff.
+func (s *SQLiteTracingStore) DeleteTracesOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	// Delete spans belonging to old traces.
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM spans WHERE trace_id IN (SELECT id FROM traces WHERE created_at < ?)`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete old spans: %w", err)
+	}
+
+	res, err := s.db.ExecContext(ctx, `DELETE FROM traces WHERE created_at < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete old traces: %w", err)
+	}
+	return res.RowsAffected()
+}

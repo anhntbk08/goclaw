@@ -55,7 +55,8 @@
     "offline": "离线",
     "lightMode": "浅色模式",
     "darkMode": "深色模式",
-    "settings": "设置"
+    "settings": "设置",
+    "teams": "团队"
   },
   "about": {
     "title": "GoClaw Lite",

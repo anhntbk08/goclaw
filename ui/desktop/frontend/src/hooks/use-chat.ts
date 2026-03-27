@@ -351,7 +351,7 @@ export function useChat() {
   // Reset streaming state + load history when session changes.
   // Messages are NOT cleared here — loadHistory() replaces them atomically.
   // Clearing would race with sendMessage's auto-session-creation flow.
-  const prevSessionRef = useRef(activeSessionKey)
+  const prevSessionRef = useRef<string | null>(null)
   useEffect(() => {
     if (activeSessionKey === prevSessionRef.current) return
     prevSessionRef.current = activeSessionKey

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/nextlevelbuilder/goclaw/internal/config"
+	"github.com/nextlevelbuilder/goclaw/internal/edition"
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 )
@@ -117,15 +118,34 @@ func (h *FilesHandler) handleServe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Tenant isolation: validate absolute path is within tenant's allowed directories.
-	// Skip for HMAC file tokens — the path is cryptographically bound in the signature,
-	// so it cannot be tampered with. File tokens are generated server-side with the correct path.
+	// Path isolation: validate file path is within allowed directories.
+	// Skip for HMAC file tokens — path is cryptographically bound in the signature.
 	if r.URL.Query().Get("ft") == "" {
-		tenantData := config.TenantDataDir(h.dataDir, store.TenantIDFromContext(r.Context()), store.TenantSlugFromContext(r.Context()))
-		tenantWs := h.tenantWorkspace(r)
-		if !strings.HasPrefix(absPath, tenantData+string(filepath.Separator)) &&
-			!strings.HasPrefix(absPath, tenantWs+string(filepath.Separator)) &&
-			absPath != tenantData && absPath != tenantWs {
+		allowed := false
+
+		// Always allow files within workspace root and data dir root.
+		// These are the two top-level directories that contain all user files.
+		sep := string(filepath.Separator)
+		if h.workspace != "" && (strings.HasPrefix(absPath, h.workspace+sep) || absPath == h.workspace) {
+			allowed = true
+		}
+		if !allowed && h.dataDir != "" && (strings.HasPrefix(absPath, h.dataDir+sep) || absPath == h.dataDir) {
+			allowed = true
+		}
+
+		// Multi-tenant (standard edition): additionally restrict to tenant-scoped subdirectories.
+		if allowed && edition.Current().RBACEnabled {
+			tenantData := config.TenantDataDir(h.dataDir, store.TenantIDFromContext(r.Context()), store.TenantSlugFromContext(r.Context()))
+			tenantWs := h.tenantWorkspace(r)
+			if !strings.HasPrefix(absPath, tenantData+sep) &&
+				!strings.HasPrefix(absPath, tenantWs+sep) &&
+				absPath != tenantData && absPath != tenantWs {
+				allowed = false
+			}
+		}
+
+		if !allowed {
+			slog.Warn("security.files_path_denied", "path", absPath, "workspace", h.workspace, "data_dir", h.dataDir)
 			http.NotFound(w, r)
 			return
 		}
