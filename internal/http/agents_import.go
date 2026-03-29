@@ -387,8 +387,9 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 	// Section: skills
 	if sections["skills"] && len(arc.skillGrants) > 0 {
 		tid := importTenantID(ctx)
+		var skipped int
 		for _, g := range arc.skillGrants {
-			_, err := h.db.ExecContext(ctx,
+			res, err := h.db.ExecContext(ctx,
 				`INSERT INTO skill_agent_grants (agent_id, skill_id, pinned_version, granted_by, tenant_id)
 				 SELECT $1, id, $3, $4, $5 FROM skills WHERE id = $2
 				 ON CONFLICT (skill_id, agent_id) DO UPDATE SET pinned_version = EXCLUDED.pinned_version`,
@@ -396,7 +397,12 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 			)
 			if err != nil {
 				slog.Warn("agents.import.skill_grant", "agent_id", ag.ID, "skill_id", g.SkillID, "error", err)
+			} else if n, _ := res.RowsAffected(); n == 0 {
+				skipped++
 			}
+		}
+		if skipped > 0 {
+			slog.Info("agents.import.skills_skipped", "agent_id", ag.ID, "skipped", skipped, "reason", "skill not found on target system")
 		}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "skills", Status: "done", Current: len(arc.skillGrants), Total: len(arc.skillGrants)})
@@ -406,8 +412,9 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 	// Section: mcp
 	if sections["mcp"] && len(arc.mcpGrants) > 0 {
 		tid := importTenantID(ctx)
+		var skipped int
 		for _, g := range arc.mcpGrants {
-			_, err := h.db.ExecContext(ctx,
+			res, err := h.db.ExecContext(ctx,
 				`INSERT INTO mcp_agent_grants (agent_id, server_id, enabled, tool_allow, tool_deny, config_overrides, granted_by, tenant_id)
 				 SELECT $1, id, $3, $4, $5, $6, $7, $8 FROM mcp_servers WHERE id = $2
 				 ON CONFLICT (server_id, agent_id) DO UPDATE SET
@@ -419,7 +426,12 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 			)
 			if err != nil {
 				slog.Warn("agents.import.mcp_grant", "agent_id", ag.ID, "server_id", g.ServerID, "error", err)
+			} else if n, _ := res.RowsAffected(); n == 0 {
+				skipped++
 			}
+		}
+		if skipped > 0 {
+			slog.Info("agents.import.mcp_skipped", "agent_id", ag.ID, "skipped", skipped, "reason", "MCP server not found on target system")
 		}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "mcp", Status: "done", Current: len(arc.mcpGrants), Total: len(arc.mcpGrants)})

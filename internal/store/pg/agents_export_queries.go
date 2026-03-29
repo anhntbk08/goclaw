@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
@@ -66,11 +67,8 @@ type ConfigPermissionExport struct {
 }
 
 type UserProfileExport struct {
-	UserID      string          `json:"user_id"`
-	Workspace   *string         `json:"workspace,omitempty"`
-	FirstSeenAt *string         `json:"first_seen_at,omitempty"`
-	LastSeenAt  *string         `json:"last_seen_at,omitempty"`
-	Metadata    json.RawMessage `json:"metadata,omitempty"`
+	UserID    string  `json:"user_id"`
+	Workspace *string `json:"workspace,omitempty"`
 }
 
 type UserOverrideExport struct {
@@ -116,6 +114,7 @@ func ExportAgentContextFiles(ctx context.Context, db *sql.DB, agentID uuid.UUID)
 	for rows.Next() {
 		var f AgentContextFileExport
 		if err := rows.Scan(&f.FileName, &f.Content); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, f)
@@ -142,6 +141,7 @@ func ExportUserContextFiles(ctx context.Context, db *sql.DB, agentID uuid.UUID) 
 	for rows.Next() {
 		var f UserContextFileExport
 		if err := rows.Scan(&f.UserID, &f.FileName, &f.Content); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, f)
@@ -344,6 +344,7 @@ func ExportSkillGrants(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]Sk
 	for rows.Next() {
 		var g SkillGrantExport
 		if err := rows.Scan(&g.SkillID, &g.PinnedVersion, &g.GrantedBy); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, g)
@@ -371,6 +372,7 @@ func ExportMCPGrants(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]MCPG
 	for rows.Next() {
 		var g MCPGrantExport
 		if err := rows.Scan(&g.ServerID, &g.Enabled, &g.ToolAllow, &g.ToolDeny, &g.ConfigOverrides, &g.GrantedBy); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, g)
@@ -400,6 +402,7 @@ func ExportCronJobs(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]CronJ
 		var j CronJobExport
 		if err := rows.Scan(&j.Name, &j.ScheduleKind, &j.CronExpression, &j.IntervalMS,
 			&j.RunAt, &j.Timezone, &j.Payload, &j.DeleteAfterRun); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, j)
@@ -427,6 +430,7 @@ func ExportConfigPermissions(ctx context.Context, db *sql.DB, agentID uuid.UUID)
 	for rows.Next() {
 		var p ConfigPermissionExport
 		if err := rows.Scan(&p.Scope, &p.ConfigType, &p.UserID, &p.Permission, &p.Metadata, &p.GrantedBy); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, p)
@@ -441,11 +445,7 @@ func ExportUserProfiles(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]U
 		return nil, err
 	}
 	rows, err := db.QueryContext(ctx,
-		"SELECT user_id, workspace,"+
-			" to_char(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),"+
-			" to_char(last_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),"+
-			" NULL"+
-			" FROM user_agent_profiles WHERE agent_id = $1"+tc,
+		"SELECT user_id, workspace FROM user_agent_profiles WHERE agent_id = $1"+tc,
 		append([]any{agentID}, tcArgs...)...,
 	)
 	if err != nil {
@@ -456,7 +456,8 @@ func ExportUserProfiles(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]U
 	var result []UserProfileExport
 	for rows.Next() {
 		var p UserProfileExport
-		if err := rows.Scan(&p.UserID, &p.Workspace, &p.FirstSeenAt, &p.LastSeenAt, &p.Metadata); err != nil {
+		if err := rows.Scan(&p.UserID, &p.Workspace); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, p)
@@ -484,6 +485,7 @@ func ExportUserOverrides(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]
 	for rows.Next() {
 		var o UserOverrideExport
 		if err := rows.Scan(&o.UserID, &o.Provider, &o.Model, &o.Settings); err != nil {
+			slog.Warn("export.scan", "error", err)
 			continue
 		}
 		result = append(result, o)
