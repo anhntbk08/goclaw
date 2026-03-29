@@ -108,12 +108,12 @@ export const PRESETS = {
   minimal: new Set(["config", "context_files"]),
   standard: new Set([
     "config", "context_files", "memory", "knowledge_graph",
-    "skills", "mcp", "custom_tools", "cron", "permissions",
+    "skills", "mcp", "cron", "permissions",
   ]),
   complete: new Set([
     "config", "context_files", "user_data", "user_context_files", "user_profiles", "user_overrides",
     "memory", "memory_global", "memory_per_user", "knowledge_graph",
-    "skills", "mcp", "custom_tools", "cron", "permissions",
+    "skills", "mcp", "cron", "permissions",
     "sessions", "workspace", "team", "media",
   ]),
 } as const;

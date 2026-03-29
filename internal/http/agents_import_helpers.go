@@ -5,11 +5,16 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/nextlevelbuilder/goclaw/internal/store"
+	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
 )
 
 // readImportArchive extracts the archive into an importArchive struct.
@@ -105,6 +110,10 @@ func readImportArchive(r io.Reader) (*importArchive, error) {
 		}
 	}
 
+	if err := readNewSections(arc, entries); err != nil {
+		return nil, err
+	}
+
 	return arc, nil
 }
 
@@ -149,4 +158,76 @@ func rawOrNil(raw json.RawMessage) json.RawMessage {
 		return nil
 	}
 	return raw
+}
+
+// importTenantID returns the tenant UUID from context, falling back to MasterTenantID.
+func importTenantID(ctx context.Context) uuid.UUID {
+	tid := store.TenantIDFromContext(ctx)
+	if tid == uuid.Nil {
+		return store.MasterTenantID
+	}
+	return tid
+}
+
+// nullJSON returns nil if raw is empty (for JSONB nullable columns), otherwise returns raw.
+func nullJSON(raw json.RawMessage) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	return raw
+}
+
+// nullStr converts a *string pointer to nil interface if the pointer is nil.
+func nullStr(s *string) any {
+	if s == nil {
+		return nil
+	}
+	return *s
+}
+
+// readNewSections parses Phase 2 archive entries into the importArchive.
+func readNewSections(arc *importArchive, entries map[string][]byte) error {
+	if data, ok := entries["skills/grants.jsonl"]; ok {
+		items, err := parseJSONL[pg.SkillGrantExport](data)
+		if err != nil {
+			return fmt.Errorf("parse skills/grants.jsonl: %w", err)
+		}
+		arc.skillGrants = items
+	}
+	if data, ok := entries["mcp/grants.jsonl"]; ok {
+		items, err := parseJSONL[pg.MCPGrantExport](data)
+		if err != nil {
+			return fmt.Errorf("parse mcp/grants.jsonl: %w", err)
+		}
+		arc.mcpGrants = items
+	}
+	if data, ok := entries["cron/jobs.jsonl"]; ok {
+		items, err := parseJSONL[pg.CronJobExport](data)
+		if err != nil {
+			return fmt.Errorf("parse cron/jobs.jsonl: %w", err)
+		}
+		arc.cronJobs = items
+	}
+	if data, ok := entries["permissions/permissions.jsonl"]; ok {
+		items, err := parseJSONL[pg.ConfigPermissionExport](data)
+		if err != nil {
+			return fmt.Errorf("parse permissions/permissions.jsonl: %w", err)
+		}
+		arc.configPerms = items
+	}
+	if data, ok := entries["user_profiles.jsonl"]; ok {
+		items, err := parseJSONL[pg.UserProfileExport](data)
+		if err != nil {
+			return fmt.Errorf("parse user_profiles.jsonl: %w", err)
+		}
+		arc.userProfiles = items
+	}
+	if data, ok := entries["user_overrides.jsonl"]; ok {
+		items, err := parseJSONL[pg.UserOverrideExport](data)
+		if err != nil {
+			return fmt.Errorf("parse user_overrides.jsonl: %w", err)
+		}
+		arc.userOverrides = items
+	}
+	return nil
 }

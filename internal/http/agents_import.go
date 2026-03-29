@@ -15,6 +15,7 @@ import (
 	"github.com/nextlevelbuilder/goclaw/internal/config"
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
+	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
 	"github.com/nextlevelbuilder/goclaw/pkg/protocol"
 )
 
@@ -34,14 +35,20 @@ func (c *importCleanup) TrackFile(name string) {
 
 // importArchive is the parsed contents of an agent archive.
 type importArchive struct {
-	manifest     *ExportManifest
-	agentConfig  map[string]json.RawMessage
-	contextFiles []importContextFile
+	manifest         *ExportManifest
+	agentConfig      map[string]json.RawMessage
+	contextFiles     []importContextFile
 	userContextFiles []importUserContextFile
-	memoryGlobal []MemoryExport
-	memoryUsers  map[string][]MemoryExport // userID → docs
-	kgEntities   []KGEntityExport
-	kgRelations  []KGRelationExport
+	memoryGlobal     []MemoryExport
+	memoryUsers      map[string][]MemoryExport // userID → docs
+	kgEntities       []KGEntityExport
+	kgRelations      []KGRelationExport
+	skillGrants      []pg.SkillGrantExport
+	mcpGrants        []pg.MCPGrantExport
+	cronJobs         []pg.CronJobExport
+	configPerms      []pg.ConfigPermissionExport
+	userProfiles     []pg.UserProfileExport
+	userOverrides    []pg.UserOverrideExport
 }
 
 type importContextFile struct {
@@ -69,10 +76,16 @@ type ImportSummary struct {
 // Defaults to all sections if empty.
 func parseImportSections(raw string) map[string]bool {
 	all := map[string]bool{
-		"config":         true,
-		"context_files":  true,
-		"memory":         true,
+		"config":          true,
+		"context_files":   true,
+		"memory":          true,
 		"knowledge_graph": true,
+		"skills":          true,
+		"mcp":             true,
+		"cron":            true,
+		"permissions":     true,
+		"user_profiles":   true,
+		"user_overrides":  true,
 	}
 	if raw == "" {
 		return all
@@ -368,6 +381,131 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		summary.KGRelations = len(arc.kgRelations)
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "knowledge_graph", Status: "done", Current: len(arc.kgEntities), Total: len(arc.kgEntities)})
+		}
+	}
+
+	// Section: skills
+	if sections["skills"] && len(arc.skillGrants) > 0 {
+		tid := importTenantID(ctx)
+		for _, g := range arc.skillGrants {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO skill_agent_grants (agent_id, skill_id, pinned_version, granted_by, tenant_id)
+				 SELECT $1, id, $3, $4, $5 FROM skills WHERE id = $2
+				 ON CONFLICT (skill_id, agent_id) DO UPDATE SET pinned_version = EXCLUDED.pinned_version`,
+				ag.ID, g.SkillID, g.PinnedVersion, g.GrantedBy, tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.skill_grant", "agent_id", ag.ID, "skill_id", g.SkillID, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "skills", Status: "done", Current: len(arc.skillGrants), Total: len(arc.skillGrants)})
+		}
+	}
+
+	// Section: mcp
+	if sections["mcp"] && len(arc.mcpGrants) > 0 {
+		tid := importTenantID(ctx)
+		for _, g := range arc.mcpGrants {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO mcp_agent_grants (agent_id, server_id, enabled, tool_allow, tool_deny, config_overrides, granted_by, tenant_id)
+				 SELECT $1, id, $3, $4, $5, $6, $7, $8 FROM mcp_servers WHERE id = $2
+				 ON CONFLICT (server_id, agent_id) DO UPDATE SET
+				   enabled = EXCLUDED.enabled,
+				   tool_allow = EXCLUDED.tool_allow,
+				   tool_deny = EXCLUDED.tool_deny,
+				   config_overrides = EXCLUDED.config_overrides`,
+				ag.ID, g.ServerID, g.Enabled, nullJSON(g.ToolAllow), nullJSON(g.ToolDeny), nullJSON(g.ConfigOverrides), g.GrantedBy, tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.mcp_grant", "agent_id", ag.ID, "server_id", g.ServerID, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "mcp", Status: "done", Current: len(arc.mcpGrants), Total: len(arc.mcpGrants)})
+		}
+	}
+
+	// Section: cron — always imported as disabled
+	if sections["cron"] && len(arc.cronJobs) > 0 {
+		tid := importTenantID(ctx)
+		for _, j := range arc.cronJobs {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO cron_jobs
+				   (agent_id, name, enabled, schedule_kind, cron_expression, interval_ms, run_at, timezone, payload, delete_after_run, tenant_id)
+				 VALUES ($1, $2, false, $3, $4, $5, $6, $7, $8, $9, $10)
+				 ON CONFLICT DO NOTHING`,
+				ag.ID, j.Name, j.ScheduleKind,
+				j.CronExpression, j.IntervalMS, nullStr(j.RunAt), j.Timezone,
+				j.Payload, j.DeleteAfterRun, tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.cron_job", "agent_id", ag.ID, "name", j.Name, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "cron", Status: "done", Current: len(arc.cronJobs), Total: len(arc.cronJobs)})
+		}
+	}
+
+	// Section: permissions
+	if sections["permissions"] && len(arc.configPerms) > 0 {
+		tid := importTenantID(ctx)
+		for _, p := range arc.configPerms {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO agent_config_permissions
+				   (agent_id, scope, config_type, user_id, permission, metadata, granted_by, tenant_id)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				 ON CONFLICT (agent_id, scope, config_type, user_id) DO UPDATE SET
+				   permission = EXCLUDED.permission,
+				   metadata = EXCLUDED.metadata`,
+				ag.ID, p.Scope, p.ConfigType, p.UserID, p.Permission,
+				nullJSON(p.Metadata), p.GrantedBy, tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.config_perm", "agent_id", ag.ID, "scope", p.Scope, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "permissions", Status: "done", Current: len(arc.configPerms), Total: len(arc.configPerms)})
+		}
+	}
+
+	// Section: user_profiles — insert if not exists
+	if sections["user_profiles"] && len(arc.userProfiles) > 0 {
+		tid := importTenantID(ctx)
+		for _, p := range arc.userProfiles {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO user_agent_profiles (agent_id, user_id, workspace, tenant_id)
+				 VALUES ($1, $2, $3, $4)
+				 ON CONFLICT DO NOTHING`,
+				ag.ID, p.UserID, p.Workspace, tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.user_profile", "agent_id", ag.ID, "user_id", p.UserID, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "user_profiles", Status: "done", Current: len(arc.userProfiles), Total: len(arc.userProfiles)})
+		}
+	}
+
+	// Section: user_overrides — insert if not exists
+	if sections["user_overrides"] && len(arc.userOverrides) > 0 {
+		tid := importTenantID(ctx)
+		for _, o := range arc.userOverrides {
+			_, err := h.db.ExecContext(ctx,
+				`INSERT INTO user_agent_overrides (agent_id, user_id, provider, model, settings, tenant_id)
+				 VALUES ($1, $2, $3, $4, $5, $6)
+				 ON CONFLICT DO NOTHING`,
+				ag.ID, o.UserID, o.Provider, o.Model, nullJSON(o.Settings), tid,
+			)
+			if err != nil {
+				slog.Warn("agents.import.user_override", "agent_id", ag.ID, "user_id", o.UserID, "error", err)
+			}
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "user_overrides", Status: "done", Current: len(arc.userOverrides), Total: len(arc.userOverrides)})
 		}
 	}
 

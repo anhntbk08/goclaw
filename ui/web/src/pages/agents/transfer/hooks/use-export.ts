@@ -13,6 +13,10 @@ export interface ExportPreview {
   kg_relations: number;
   user_profiles: number;
   user_overrides: number;
+  skill_grants: number;
+  mcp_grants: number;
+  cron_jobs: number;
+  config_perms: number;
 }
 
 export function useExportPreview(agentId: string | null) {

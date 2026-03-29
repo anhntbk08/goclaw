@@ -435,6 +435,138 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		}
 	}
 
+	// Section: skills
+	if sections["skills"] {
+		grants, _ := pg.ExportSkillGrants(ctx, h.db, ag.ID)
+		if len(grants) > 0 {
+			data, err := marshalJSONL(grants)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal skill grants: %w", err)
+			}
+			if err := addToTar(tw, "skills/grants.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write skills/grants.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["skills"] = map[string]int{"count": len(grants)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "skills", Status: "done", Detail: fmt.Sprintf("%d grants", len(grants))})
+		}
+	}
+
+	// Section: mcp
+	if sections["mcp"] {
+		grants, _ := pg.ExportMCPGrants(ctx, h.db, ag.ID)
+		if len(grants) > 0 {
+			data, err := marshalJSONL(grants)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal mcp grants: %w", err)
+			}
+			if err := addToTar(tw, "mcp/grants.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write mcp/grants.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["mcp"] = map[string]int{"count": len(grants)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "mcp", Status: "done", Detail: fmt.Sprintf("%d grants", len(grants))})
+		}
+	}
+
+	// Section: cron
+	if sections["cron"] {
+		jobs, _ := pg.ExportCronJobs(ctx, h.db, ag.ID)
+		if len(jobs) > 0 {
+			data, err := marshalJSONL(jobs)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal cron jobs: %w", err)
+			}
+			if err := addToTar(tw, "cron/jobs.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write cron/jobs.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["cron"] = map[string]int{"count": len(jobs)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "cron", Status: "done", Detail: fmt.Sprintf("%d jobs", len(jobs))})
+		}
+	}
+
+	// Section: permissions
+	if sections["permissions"] {
+		perms, _ := pg.ExportConfigPermissions(ctx, h.db, ag.ID)
+		if len(perms) > 0 {
+			data, err := marshalJSONL(perms)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal config permissions: %w", err)
+			}
+			if err := addToTar(tw, "permissions/permissions.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write permissions/permissions.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["permissions"] = map[string]int{"count": len(perms)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "permissions", Status: "done", Detail: fmt.Sprintf("%d permissions", len(perms))})
+		}
+	}
+
+	// Section: user_profiles
+	if sections["user_profiles"] {
+		profiles, _ := pg.ExportUserProfiles(ctx, h.db, ag.ID)
+		if len(profiles) > 0 {
+			data, err := marshalJSONL(profiles)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal user profiles: %w", err)
+			}
+			if err := addToTar(tw, "user_profiles.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write user_profiles.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["user_profiles"] = map[string]int{"count": len(profiles)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "user_profiles", Status: "done", Detail: fmt.Sprintf("%d profiles", len(profiles))})
+		}
+	}
+
+	// Section: user_overrides
+	if sections["user_overrides"] {
+		overrides, _ := pg.ExportUserOverrides(ctx, h.db, ag.ID)
+		if len(overrides) > 0 {
+			data, err := marshalJSONL(overrides)
+			if err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("marshal user overrides: %w", err)
+			}
+			if err := addToTar(tw, "user_overrides.jsonl", data); err != nil {
+				tw.Close()
+				gw.Close()
+				return fmt.Errorf("write user_overrides.jsonl: %w", err)
+			}
+		}
+		manifest.Sections["user_overrides"] = map[string]int{"count": len(overrides)}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "user_overrides", Status: "done", Detail: fmt.Sprintf("%d overrides", len(overrides))})
+		}
+	}
+
 	// Manifest last — has accurate final counts
 	manifestJSON, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {

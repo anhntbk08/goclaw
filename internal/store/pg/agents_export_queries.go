@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/google/uuid"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
@@ -27,6 +28,58 @@ type MemoryDocExport struct {
 	UserID  string
 }
 
+// Phase 2 export types.
+
+type SkillGrantExport struct {
+	SkillID       string `json:"skill_id"`
+	PinnedVersion int    `json:"pinned_version"`
+	GrantedBy     string `json:"granted_by"`
+}
+
+type MCPGrantExport struct {
+	ServerID        string          `json:"server_id"`
+	Enabled         bool            `json:"enabled"`
+	ToolAllow       json.RawMessage `json:"tool_allow,omitempty"`
+	ToolDeny        json.RawMessage `json:"tool_deny,omitempty"`
+	ConfigOverrides json.RawMessage `json:"config_overrides,omitempty"`
+	GrantedBy       string          `json:"granted_by"`
+}
+
+type CronJobExport struct {
+	Name           string          `json:"name"`
+	ScheduleKind   string          `json:"schedule_kind"`
+	CronExpression *string         `json:"cron_expression,omitempty"`
+	IntervalMS     *int64          `json:"interval_ms,omitempty"`
+	RunAt          *string         `json:"run_at,omitempty"`
+	Timezone       *string         `json:"timezone,omitempty"`
+	Payload        json.RawMessage `json:"payload"`
+	DeleteAfterRun bool            `json:"delete_after_run"`
+}
+
+type ConfigPermissionExport struct {
+	Scope      string          `json:"scope"`
+	ConfigType string          `json:"config_type"`
+	UserID     string          `json:"user_id"`
+	Permission string          `json:"permission"`
+	Metadata   json.RawMessage `json:"metadata,omitempty"`
+	GrantedBy  *string         `json:"granted_by,omitempty"`
+}
+
+type UserProfileExport struct {
+	UserID      string          `json:"user_id"`
+	Workspace   *string         `json:"workspace,omitempty"`
+	FirstSeenAt *string         `json:"first_seen_at,omitempty"`
+	LastSeenAt  *string         `json:"last_seen_at,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
+}
+
+type UserOverrideExport struct {
+	UserID   string          `json:"user_id"`
+	Provider *string         `json:"provider,omitempty"`
+	Model    *string         `json:"model,omitempty"`
+	Settings json.RawMessage `json:"settings,omitempty"`
+}
+
 type ExportPreview struct {
 	ContextFiles     int `json:"context_files"`
 	UserContextFiles int `json:"user_context_files_users"`
@@ -34,6 +87,10 @@ type ExportPreview struct {
 	MemoryPerUser    int `json:"memory_per_user"`
 	KGEntities       int `json:"kg_entities"`
 	KGRelations      int `json:"kg_relations"`
+	SkillGrants      int `json:"skill_grants"`
+	MCPGrants        int `json:"mcp_grants"`
+	CronJobs         int `json:"cron_jobs"`
+	ConfigPerms      int `json:"config_permissions"`
 	UserProfiles     int `json:"user_profiles"`
 	UserOverrides    int `json:"user_overrides"`
 }
@@ -242,23 +299,195 @@ func ExportPreviewCounts(ctx context.Context, db *sql.DB, agentID uuid.UUID) (*E
 	var p ExportPreview
 	err = db.QueryRowContext(ctx, `
 		SELECT
-			(SELECT COUNT(*) FROM agent_context_files  WHERE agent_id = $1`+tc+`) AS context_files,
+			(SELECT COUNT(*) FROM agent_context_files    WHERE agent_id = $1`+tc+`) AS context_files,
 			(SELECT COUNT(DISTINCT user_id) FROM user_context_files WHERE agent_id = $1`+tc+`) AS user_context_files_users,
-			(SELECT COUNT(*) FROM memory_documents     WHERE agent_id = $1 AND user_id IS NULL`+tc+`) AS memory_global,
-			(SELECT COUNT(*) FROM memory_documents     WHERE agent_id = $1 AND user_id IS NOT NULL`+tc+`) AS memory_per_user,
-			(SELECT COUNT(*) FROM kg_entities          WHERE agent_id = $1`+tc+`) AS kg_entities,
-			(SELECT COUNT(*) FROM kg_relations         WHERE agent_id = $1`+tc+`) AS kg_relations,
-			(SELECT COUNT(*) FROM user_agent_profiles  WHERE agent_id = $1`+tc+`) AS user_profiles,
-			(SELECT COUNT(*) FROM user_agent_overrides WHERE agent_id = $1`+tc+`) AS user_overrides
+			(SELECT COUNT(*) FROM memory_documents       WHERE agent_id = $1 AND user_id IS NULL`+tc+`) AS memory_global,
+			(SELECT COUNT(*) FROM memory_documents       WHERE agent_id = $1 AND user_id IS NOT NULL`+tc+`) AS memory_per_user,
+			(SELECT COUNT(*) FROM kg_entities            WHERE agent_id = $1`+tc+`) AS kg_entities,
+			(SELECT COUNT(*) FROM kg_relations           WHERE agent_id = $1`+tc+`) AS kg_relations,
+			(SELECT COUNT(*) FROM skill_agent_grants     WHERE agent_id = $1`+tc+`) AS skill_grants,
+			(SELECT COUNT(*) FROM mcp_agent_grants       WHERE agent_id = $1`+tc+`) AS mcp_grants,
+			(SELECT COUNT(*) FROM cron_jobs              WHERE agent_id = $1`+tc+`) AS cron_jobs,
+			(SELECT COUNT(*) FROM agent_config_permissions WHERE agent_id = $1`+tc+`) AS config_permissions,
+			(SELECT COUNT(*) FROM user_agent_profiles    WHERE agent_id = $1`+tc+`) AS user_profiles,
+			(SELECT COUNT(*) FROM user_agent_overrides   WHERE agent_id = $1`+tc+`) AS user_overrides
 	`, args...).Scan(
 		&p.ContextFiles, &p.UserContextFiles,
 		&p.MemoryGlobal, &p.MemoryPerUser,
 		&p.KGEntities, &p.KGRelations,
+		&p.SkillGrants, &p.MCPGrants,
+		&p.CronJobs, &p.ConfigPerms,
 		&p.UserProfiles, &p.UserOverrides,
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// ExportSkillGrants returns all skill grants for the given agent.
+func ExportSkillGrants(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]SkillGrantExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT skill_id, pinned_version, granted_by FROM skill_agent_grants WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []SkillGrantExport
+	for rows.Next() {
+		var g SkillGrantExport
+		if err := rows.Scan(&g.SkillID, &g.PinnedVersion, &g.GrantedBy); err != nil {
+			continue
+		}
+		result = append(result, g)
+	}
+	return result, rows.Err()
+}
+
+// ExportMCPGrants returns all MCP server grants for the given agent.
+func ExportMCPGrants(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]MCPGrantExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT server_id, enabled, tool_allow, tool_deny, config_overrides, granted_by"+
+			" FROM mcp_agent_grants WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []MCPGrantExport
+	for rows.Next() {
+		var g MCPGrantExport
+		if err := rows.Scan(&g.ServerID, &g.Enabled, &g.ToolAllow, &g.ToolDeny, &g.ConfigOverrides, &g.GrantedBy); err != nil {
+			continue
+		}
+		result = append(result, g)
+	}
+	return result, rows.Err()
+}
+
+// ExportCronJobs returns all cron jobs for the given agent.
+func ExportCronJobs(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]CronJobExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT name, schedule_kind, cron_expression, interval_ms,"+
+			" to_char(run_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), timezone, payload, delete_after_run"+
+			" FROM cron_jobs WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []CronJobExport
+	for rows.Next() {
+		var j CronJobExport
+		if err := rows.Scan(&j.Name, &j.ScheduleKind, &j.CronExpression, &j.IntervalMS,
+			&j.RunAt, &j.Timezone, &j.Payload, &j.DeleteAfterRun); err != nil {
+			continue
+		}
+		result = append(result, j)
+	}
+	return result, rows.Err()
+}
+
+// ExportConfigPermissions returns all agent config permissions for the given agent.
+func ExportConfigPermissions(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]ConfigPermissionExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT scope, config_type, user_id, permission, metadata, granted_by"+
+			" FROM agent_config_permissions WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ConfigPermissionExport
+	for rows.Next() {
+		var p ConfigPermissionExport
+		if err := rows.Scan(&p.Scope, &p.ConfigType, &p.UserID, &p.Permission, &p.Metadata, &p.GrantedBy); err != nil {
+			continue
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+// ExportUserProfiles returns all user profiles for the given agent.
+func ExportUserProfiles(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]UserProfileExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT user_id, workspace,"+
+			" to_char(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),"+
+			" to_char(last_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),"+
+			" NULL"+
+			" FROM user_agent_profiles WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []UserProfileExport
+	for rows.Next() {
+		var p UserProfileExport
+		if err := rows.Scan(&p.UserID, &p.Workspace, &p.FirstSeenAt, &p.LastSeenAt, &p.Metadata); err != nil {
+			continue
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+// ExportUserOverrides returns all user model overrides for the given agent.
+func ExportUserOverrides(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]UserOverrideExport, error) {
+	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT user_id, provider, model, settings"+
+			" FROM user_agent_overrides WHERE agent_id = $1"+tc,
+		append([]any{agentID}, tcArgs...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []UserOverrideExport
+	for rows.Next() {
+		var o UserOverrideExport
+		if err := rows.Scan(&o.UserID, &o.Provider, &o.Model, &o.Settings); err != nil {
+			continue
+		}
+		result = append(result, o)
+	}
+	return result, rows.Err()
 }
 

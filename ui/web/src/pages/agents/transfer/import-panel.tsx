@@ -82,7 +82,12 @@ export function ImportPanel({ agents }: ImportPanelProps) {
     { id: "memory", labelKey: "transfer.sections.memory", hint: "transfer.hints.mergeUpsert" },
     { id: "knowledge_graph", labelKey: "transfer.sections.knowledgeGraph", hint: "transfer.hints.mergeKgUpsert" },
     { id: "skills", labelKey: "transfer.sections.skills" },
-    { id: "workspace", labelKey: "transfer.sections.workspace", hint: "transfer.hints.mergeFiles" },
+    { id: "mcp", labelKey: "transfer.sections.mcp" },
+    { id: "cron", labelKey: "transfer.sections.cron" },
+    { id: "permissions", labelKey: "transfer.sections.permissions" },
+    { id: "user_profiles", labelKey: "transfer.sections.userProfiles" },
+    { id: "user_overrides", labelKey: "transfer.sections.userOverrides" },
+    { id: "workspace", labelKey: "transfer.sections.workspace", comingSoon: true, hint: "transfer.hints.mergeFiles" },
   ];
 
   // === Running / Complete / Error states ===
