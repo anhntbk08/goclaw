@@ -177,6 +177,14 @@ func nullJSON(raw json.RawMessage) any {
 	return raw
 }
 
+// coalesceJSON returns the raw message or '{}' if empty — for NOT NULL JSONB columns.
+func coalesceJSON(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 {
+		return json.RawMessage(`{}`)
+	}
+	return raw
+}
+
 // nullStr converts a *string pointer to nil interface if the pointer is nil.
 func nullStr(s *string) any {
 	if s == nil {

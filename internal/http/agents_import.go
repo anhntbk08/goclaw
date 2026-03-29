@@ -426,15 +426,23 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		}
 	}
 
-	// Section: cron — always imported as disabled
+	// Section: cron — always imported as disabled, skip duplicates by name
 	if sections["cron"] && len(arc.cronJobs) > 0 {
 		tid := importTenantID(ctx)
 		for _, j := range arc.cronJobs {
+			// Check if cron job with same name already exists (no UNIQUE constraint on name)
+			var exists bool
+			_ = h.db.QueryRowContext(ctx,
+				`SELECT EXISTS(SELECT 1 FROM cron_jobs WHERE agent_id = $1 AND name = $2)`,
+				ag.ID, j.Name,
+			).Scan(&exists)
+			if exists {
+				continue
+			}
 			_, err := h.db.ExecContext(ctx,
 				`INSERT INTO cron_jobs
 				   (agent_id, name, enabled, schedule_kind, cron_expression, interval_ms, run_at, timezone, payload, delete_after_run, tenant_id)
-				 VALUES ($1, $2, false, $3, $4, $5, $6, $7, $8, $9, $10)
-				 ON CONFLICT DO NOTHING`,
+				 VALUES ($1, $2, false, $3, $4, $5, $6, $7, $8, $9, $10)`,
 				ag.ID, j.Name, j.ScheduleKind,
 				j.CronExpression, j.IntervalMS, nullStr(j.RunAt), j.Timezone,
 				j.Payload, j.DeleteAfterRun, tid,
@@ -498,7 +506,7 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 				`INSERT INTO user_agent_overrides (agent_id, user_id, provider, model, settings, tenant_id)
 				 VALUES ($1, $2, $3, $4, $5, $6)
 				 ON CONFLICT DO NOTHING`,
-				ag.ID, o.UserID, o.Provider, o.Model, nullJSON(o.Settings), tid,
+				ag.ID, o.UserID, o.Provider, o.Model, coalesceJSON(o.Settings), tid,
 			)
 			if err != nil {
 				slog.Warn("agents.import.user_override", "agent_id", ag.ID, "user_id", o.UserID, "error", err)

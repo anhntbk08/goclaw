@@ -437,7 +437,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: skills
 	if sections["skills"] {
-		grants, _ := pg.ExportSkillGrants(ctx, h.db, ag.ID)
+		grants, qErr := pg.ExportSkillGrants(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query skill grants", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(grants) > 0 {
 			data, err := marshalJSONL(grants)
 			if err != nil {
@@ -459,7 +462,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: mcp
 	if sections["mcp"] {
-		grants, _ := pg.ExportMCPGrants(ctx, h.db, ag.ID)
+		grants, qErr := pg.ExportMCPGrants(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query MCP grants", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(grants) > 0 {
 			data, err := marshalJSONL(grants)
 			if err != nil {
@@ -481,7 +487,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: cron
 	if sections["cron"] {
-		jobs, _ := pg.ExportCronJobs(ctx, h.db, ag.ID)
+		jobs, qErr := pg.ExportCronJobs(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query cron jobs", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(jobs) > 0 {
 			data, err := marshalJSONL(jobs)
 			if err != nil {
@@ -503,7 +512,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: permissions
 	if sections["permissions"] {
-		perms, _ := pg.ExportConfigPermissions(ctx, h.db, ag.ID)
+		perms, qErr := pg.ExportConfigPermissions(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query config permissions", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(perms) > 0 {
 			data, err := marshalJSONL(perms)
 			if err != nil {
@@ -525,7 +537,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: user_profiles
 	if sections["user_profiles"] {
-		profiles, _ := pg.ExportUserProfiles(ctx, h.db, ag.ID)
+		profiles, qErr := pg.ExportUserProfiles(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query user profiles", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(profiles) > 0 {
 			data, err := marshalJSONL(profiles)
 			if err != nil {
@@ -547,7 +562,10 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 
 	// Section: user_overrides
 	if sections["user_overrides"] {
-		overrides, _ := pg.ExportUserOverrides(ctx, h.db, ag.ID)
+		overrides, qErr := pg.ExportUserOverrides(ctx, h.db, ag.ID)
+		if qErr != nil {
+			slog.Warn("export: failed to query user overrides", "agent", ag.AgentKey, "error", qErr)
+		}
 		if len(overrides) > 0 {
 			data, err := marshalJSONL(overrides)
 			if err != nil {
