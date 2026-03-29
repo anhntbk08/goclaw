@@ -141,7 +141,7 @@ func (h *MCPHandler) writeMCPExportArchive(ctx context.Context, w io.Writer, pro
 	}
 
 	if progressFn != nil {
-		progressFn(ProgressEvent{Phase: "servers", Status: "done", Current: len(servers), Total: len(servers)})
+		progressFn(ProgressEvent{Phase: "servers", Status: "done", Current: len(servers), Total: len(servers), Detail: fmt.Sprintf("%d servers exported", len(servers))})
 	}
 
 	grants, err := pg.ExportMCPGrantsWithKeys(ctx, h.db)
@@ -163,7 +163,7 @@ func (h *MCPHandler) writeMCPExportArchive(ctx context.Context, w io.Writer, pro
 	}
 
 	if progressFn != nil {
-		progressFn(ProgressEvent{Phase: "grants", Status: "done", Current: len(grants), Total: len(grants)})
+		progressFn(ProgressEvent{Phase: "grants", Status: "done", Current: len(grants), Total: len(grants), Detail: fmt.Sprintf("%d agent grants", len(grants))})
 	}
 
 	if err := tw.Close(); err != nil {

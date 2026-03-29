@@ -7,15 +7,9 @@ import { AgentExportPanel } from "./agent-export-panel";
 import { AgentImportPanel } from "./agent-import-panel";
 import { TeamExportPanel } from "./team-export-panel";
 import { TeamImportPanel } from "./team-import-panel";
+import { CapabilitiesExportPanel } from "./capabilities-export-panel";
+import { CapabilitiesImportPanel } from "./capabilities-import-panel";
 import { useTeams } from "@/pages/teams/hooks/use-teams";
-
-function ComingSoonPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="rounded-lg border border-dashed px-6 py-12 text-center">
-      <p className="text-sm text-muted-foreground">{label} — coming soon</p>
-    </div>
-  );
-}
 
 export function ImportExportPage() {
   const { t } = useTranslation("import-export");
@@ -95,9 +89,20 @@ export function ImportExportPage() {
             </Tabs>
           </TabsContent>
 
-          {/* Skills & MCP — coming soon */}
+          {/* Skills & MCP */}
           <TabsContent value="skills-mcp" className="mt-4">
-            <ComingSoonPlaceholder label={t("tabs.skillsMcp")} />
+            <Tabs value={innerTab} onValueChange={setInnerTab}>
+              <TabsList>
+                <TabsTrigger value="export">{t("tabs.export")}</TabsTrigger>
+                <TabsTrigger value="import">{t("tabs.import")}</TabsTrigger>
+              </TabsList>
+              <TabsContent value="export" className="mt-4">
+                <CapabilitiesExportPanel />
+              </TabsContent>
+              <TabsContent value="import" className="mt-4">
+                <CapabilitiesImportPanel />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

@@ -90,5 +90,38 @@
     "minimal": "Tối giản",
     "standard": "Tiêu chuẩn",
     "complete": "Đầy đủ"
+  },
+  "teamExportNote": "Xuất nhóm bao gồm toàn bộ agent thành viên và dữ liệu (file ngữ cảnh, bộ nhớ, đồ thị tri thức, cron, workspace).",
+  "teamSelectPlaceholder": "Chọn nhóm...",
+  "teamDropHere": "Kéo thả file nhóm hoặc nhấp để chọn",
+  "teamDropFormats": "Hỗ trợ file .tar.gz",
+  "teamDontClose": "Đừng đóng trang — đang nhập",
+  "teamImportAnother": "Nhập thêm",
+  "teamTryAgain": "Thử lại",
+  "teamChangeFile": "Đổi file",
+  "teamPreview": {
+    "members": "{{count}} thành viên",
+    "agents": "{{count}} agent",
+    "tasks": "{{count}} tác vụ",
+    "links": "{{count}} liên kết",
+    "loading": "Đang tải...",
+    "error": "Không thể tải xem trước"
+  },
+  "skillsMcp": {
+    "skillsTab": "Kỹ năng",
+    "mcpTab": "MCP Servers",
+    "skillsNote": "Chỉ xuất kỹ năng tùy chỉnh (không bao gồm kỹ năng hệ thống).",
+    "mcpNote": "Cấu hình MCP server được xuất không bao gồm API key, biến môi trường, hay headers. Bạn cần nhập lại secrets sau khi import.",
+    "customSkills": "{{count}} kỹ năng tùy chỉnh",
+    "grants": "{{count}} liên kết agent",
+    "servers": "{{count}} server",
+    "noSkills": "Không có kỹ năng tùy chỉnh để xuất.",
+    "noServers": "Không có MCP server để xuất.",
+    "exportSkills": "Xuất kỹ năng",
+    "exportMcp": "Xuất MCP Servers",
+    "importSkills": "Nhập kỹ năng",
+    "importMcp": "Nhập MCP Servers",
+    "dropSkills": "Kéo thả file kỹ năng hoặc nhấp để chọn",
+    "dropMcp": "Kéo thả file MCP hoặc nhấp để chọn"
   }
 }

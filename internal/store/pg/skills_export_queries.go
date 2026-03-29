@@ -96,7 +96,7 @@ func ExportCustomSkills(ctx context.Context, db *sql.DB) ([]CustomSkillExport, e
 
 // ExportSkillGrantsWithAgentKey returns all agent grants for a skill, resolved to agent_key.
 func ExportSkillGrantsWithAgentKey(ctx context.Context, db *sql.DB, skillID uuid.UUID) ([]SkillGrantWithKey, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 2, "g")
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func ExportSkillsPreview(ctx context.Context, db *sql.DB) (*SkillsExportPreview,
 		return nil, err
 	}
 
-	tc2, tcArgs2, _, err := scopeClause(ctx, 1)
+	tc2, tcArgs2, _, err := scopeClauseAlias(ctx, 1, "g")
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func ExportSkillsPreview(ctx context.Context, db *sql.DB) (*SkillsExportPreview,
 // ExportSkillGrantAgentKeys returns all unique agent_keys that have grants for non-system skills.
 // Used for import to pre-resolve agent_key → agent_id.
 func ExportSkillGrantAgentKeys(ctx context.Context, db *sql.DB) ([]string, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 1)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 1, "g")
 	if err != nil {
 		return nil, err
 	}

@@ -98,5 +98,30 @@
   "teamDontClose": "Don't close this page — import in progress",
   "teamImportAnother": "Import Another",
   "teamTryAgain": "Try Again",
-  "teamChangeFile": "Change File"
+  "teamChangeFile": "Change File",
+  "teamPreview": {
+    "members": "{{count}} members",
+    "agents": "{{count}} agents",
+    "tasks": "{{count}} tasks",
+    "links": "{{count}} links",
+    "loading": "Loading preview...",
+    "error": "Failed to load preview"
+  },
+  "skillsMcp": {
+    "skillsTab": "Skills",
+    "mcpTab": "MCP Servers",
+    "skillsNote": "Only custom skills (non-system) are exported. System skills are not included.",
+    "mcpNote": "MCP server configs are exported without API keys, env vars, or headers. You'll need to re-enter secrets after import.",
+    "customSkills": "{{count}} custom skills",
+    "grants": "{{count}} agent grants",
+    "servers": "{{count}} servers",
+    "noSkills": "No custom skills to export.",
+    "noServers": "No MCP servers to export.",
+    "exportSkills": "Export Skills",
+    "exportMcp": "Export MCP Servers",
+    "importSkills": "Import Skills",
+    "importMcp": "Import MCP Servers",
+    "dropSkills": "Drop skills archive file here or click to browse",
+    "dropMcp": "Drop MCP archive file here or click to browse"
+  }
 }

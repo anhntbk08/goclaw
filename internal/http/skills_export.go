@@ -200,7 +200,7 @@ func (h *SkillsHandler) writeSkillsExportArchive(ctx context.Context, w io.Write
 	}
 
 	if progressFn != nil {
-		progressFn(ProgressEvent{Phase: "skills", Status: "done", Current: len(skills), Total: len(skills)})
+		progressFn(ProgressEvent{Phase: "skills", Status: "done", Current: len(skills), Total: len(skills), Detail: fmt.Sprintf("%d skills exported", len(skills))})
 	}
 
 	if err := tw.Close(); err != nil {

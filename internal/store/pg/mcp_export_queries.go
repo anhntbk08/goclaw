@@ -88,7 +88,7 @@ func ExportMCPServers(ctx context.Context, db *sql.DB) ([]MCPServerExport, error
 
 // ExportMCPGrantsWithKeys returns all MCP agent grants with server_name and agent_key resolved.
 func ExportMCPGrantsWithKeys(ctx context.Context, db *sql.DB) ([]MCPGrantWithKey, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 1)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 1, "g")
 	if err != nil {
 		return nil, err
 	}

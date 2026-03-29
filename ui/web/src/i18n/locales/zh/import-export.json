@@ -90,5 +90,38 @@
     "minimal": "精简",
     "standard": "标准",
     "complete": "完整"
+  },
+  "teamExportNote": "团队导出包含所有成员 Agent 及其数据（上下文文件、记忆、知识图谱、定时任务、工作区）。",
+  "teamSelectPlaceholder": "选择团队...",
+  "teamDropHere": "拖放团队归档文件或点击浏览",
+  "teamDropFormats": "支持 .tar.gz 文件",
+  "teamDontClose": "请勿关闭页面 — 正在导入",
+  "teamImportAnother": "再次导入",
+  "teamTryAgain": "重试",
+  "teamChangeFile": "更换文件",
+  "teamPreview": {
+    "members": "{{count}} 名成员",
+    "agents": "{{count}} 个 Agent",
+    "tasks": "{{count}} 个任务",
+    "links": "{{count}} 个链接",
+    "loading": "加载中...",
+    "error": "预览加载失败"
+  },
+  "skillsMcp": {
+    "skillsTab": "技能",
+    "mcpTab": "MCP 服务器",
+    "skillsNote": "仅导出自定义技能（不包含系统技能）。",
+    "mcpNote": "MCP 服务器配置导出时不包含 API 密钥、环境变量和请求头。导入后需重新填写密钥信息。",
+    "customSkills": "{{count}} 个自定义技能",
+    "grants": "{{count}} 个 Agent 授权",
+    "servers": "{{count}} 个服务器",
+    "noSkills": "没有自定义技能可导出。",
+    "noServers": "没有 MCP 服务器可导出。",
+    "exportSkills": "导出技能",
+    "exportMcp": "导出 MCP 服务器",
+    "importSkills": "导入技能",
+    "importMcp": "导入 MCP 服务器",
+    "dropSkills": "拖放技能归档文件或点击浏览",
+    "dropMcp": "拖放 MCP 归档文件或点击浏览"
   }
 }

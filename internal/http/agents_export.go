@@ -295,7 +295,7 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		}
 		manifest.Sections["context_files"] = map[string]int{"count": len(files)}
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "context_files", Status: "done", Current: len(files), Total: len(files)})
+			progressFn(ProgressEvent{Phase: "context_files", Status: "done", Current: len(files), Total: len(files), Detail: fmt.Sprintf("%d files", len(files))})
 		}
 
 		userFiles, err := pg.ExportUserContextFiles(ctx, h.db, ag.ID)
@@ -317,7 +317,7 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		}
 		manifest.Sections["user_context_files"] = map[string]int{"count": len(userFiles)}
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "user_context_files", Status: "done", Current: len(userFiles), Total: len(userFiles)})
+			progressFn(ProgressEvent{Phase: "user_context_files", Status: "done", Current: len(userFiles), Total: len(userFiles), Detail: fmt.Sprintf("%d files", len(userFiles))})
 		}
 	}
 
@@ -372,7 +372,7 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 			"per_user": len(docs) - len(globalDocs),
 		}
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "memory", Status: "done", Current: len(docs), Total: len(docs)})
+			progressFn(ProgressEvent{Phase: "memory", Status: "done", Current: len(docs), Total: len(docs), Detail: fmt.Sprintf("%d docs", len(docs))})
 		}
 	}
 
@@ -415,7 +415,7 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 			}
 		}
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "knowledge_graph_entities", Status: "done", Current: len(entities), Total: len(entities)})
+			progressFn(ProgressEvent{Phase: "knowledge_graph_entities", Status: "done", Current: len(entities), Total: len(entities), Detail: fmt.Sprintf("%d entities", len(entities))})
 		}
 
 		relations, err := pg.ExportKGRelations(ctx, h.db, ag.ID)
@@ -455,7 +455,7 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 			"relations": len(relations),
 		}
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "knowledge_graph_relations", Status: "done", Current: len(relations), Total: len(relations)})
+			progressFn(ProgressEvent{Phase: "knowledge_graph_relations", Status: "done", Current: len(relations), Total: len(relations), Detail: fmt.Sprintf("%d relations", len(relations))})
 		}
 	}
 

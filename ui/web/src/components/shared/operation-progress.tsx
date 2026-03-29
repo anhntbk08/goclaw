@@ -39,9 +39,13 @@ export function OperationProgress({ steps, elapsed, className }: OperationProgre
             <span className={step.status === "pending" ? "text-muted-foreground" : ""}>
               {step.label}
             </span>
-            {step.detail && (
-              <span className="text-xs text-muted-foreground ml-auto">{step.detail}</span>
-            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {step.detail
+                ? step.detail
+                : step.status === "done" && step.total != null && step.total > 0
+                  ? `${step.total} items`
+                  : null}
+            </span>
           </div>
 
           {step.status === "running" && step.total != null && step.total > 0 && (

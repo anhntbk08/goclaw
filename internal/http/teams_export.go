@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -298,14 +299,20 @@ func (h *AgentsHandler) writeTeamExportArchive(ctx context.Context, w io.Writer,
 
 		// Write all agent sections into archive under prefix
 		agData, _ := h.agents.GetByID(ctx, member.ID)
+		var counts agentSectionCounts
 		if agData != nil {
-			if err := h.writeAgentSectionsToTar(ctx, tw, agData, prefix, sections, progressFn); err != nil {
-				slog.Warn("team.export: agent sections failed", "key", member.AgentKey, "error", err)
+			if progressFn != nil {
+				progressFn(ProgressEvent{Phase: member.AgentKey, Status: "running"})
+			}
+			var secErr error
+			counts, secErr = h.writeAgentSectionsToTar(ctx, tw, agData, prefix, sections)
+			if secErr != nil {
+				slog.Warn("team.export: agent sections failed", "key", member.AgentKey, "error", secErr)
 			}
 		}
 
 		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "agent", Status: "done", Detail: member.AgentKey})
+			progressFn(ProgressEvent{Phase: member.AgentKey, Status: "done", Detail: counts.summary()})
 		}
 	}
 
@@ -331,9 +338,52 @@ func (h *AgentsHandler) writeTeamExportArchive(ctx context.Context, w io.Writer,
 	return gw.Close()
 }
 
+// agentSectionCounts tracks how many items were exported per section for progress reporting.
+type agentSectionCounts struct {
+	contextFiles int
+	memory       int
+	kgEntities   int
+	kgRelations  int
+	cronJobs     int
+	profiles     int
+	overrides    int
+	wsFiles      int
+}
+
+func (c agentSectionCounts) summary() string {
+	var parts []string
+	if c.contextFiles > 0 {
+		parts = append(parts, fmt.Sprintf("%d context files", c.contextFiles))
+	}
+	if c.memory > 0 {
+		parts = append(parts, fmt.Sprintf("%d memory docs", c.memory))
+	}
+	if c.kgEntities > 0 || c.kgRelations > 0 {
+		parts = append(parts, fmt.Sprintf("%d entities · %d relations", c.kgEntities, c.kgRelations))
+	}
+	if c.cronJobs > 0 {
+		parts = append(parts, fmt.Sprintf("%d cron jobs", c.cronJobs))
+	}
+	if c.profiles > 0 {
+		parts = append(parts, fmt.Sprintf("%d user profiles", c.profiles))
+	}
+	if c.overrides > 0 {
+		parts = append(parts, fmt.Sprintf("%d overrides", c.overrides))
+	}
+	if c.wsFiles > 0 {
+		parts = append(parts, fmt.Sprintf("%d workspace files", c.wsFiles))
+	}
+	if len(parts) == 0 {
+		return "config only"
+	}
+	return strings.Join(parts, " · ")
+}
+
 // writeAgentSectionsToTar writes agent data sections into an existing tar.Writer with the given prefix.
 // This allows team export to embed per-agent data under agents/{key}/ without creating nested archives.
-func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Writer, ag *store.AgentData, prefix string, sections map[string]bool, progressFn func(ProgressEvent)) error {
+func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Writer, ag *store.AgentData, prefix string, sections map[string]bool) (agentSectionCounts, error) {
+	var c agentSectionCounts
+
 	// context_files (agent-level + per-user)
 	if sections["context_files"] {
 		files, err := pg.ExportAgentContextFiles(ctx, h.db, ag.ID)
@@ -343,9 +393,10 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 		for _, f := range files {
 			path := prefix + "context_files/" + sanitizeName(f.FileName)
 			if err := addToTar(tw, path, []byte(f.Content)); err != nil {
-				return fmt.Errorf("write %s: %w", path, err)
+				return c, fmt.Errorf("write %s: %w", path, err)
 			}
 		}
+		c.contextFiles += len(files)
 		userFiles, err := pg.ExportUserContextFiles(ctx, h.db, ag.ID)
 		if err != nil {
 			slog.Warn("team.export.agent.user_context_files", "agent_id", ag.ID, "error", err)
@@ -353,9 +404,10 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 		for _, f := range userFiles {
 			path := prefix + "user_context_files/" + sanitizeName(f.UserID) + "/" + sanitizeName(f.FileName)
 			if err := addToTar(tw, path, []byte(f.Content)); err != nil {
-				return fmt.Errorf("write %s: %w", path, err)
+				return c, fmt.Errorf("write %s: %w", path, err)
 			}
 		}
+		c.contextFiles += len(userFiles)
 	}
 
 	// memory (global + per-user)
@@ -382,6 +434,7 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(udocs)
 			addToTar(tw, prefix+"memory/users/"+sanitizeName(uid)+".jsonl", data) //nolint:errcheck
 		}
+		c.memory = len(docs)
 	}
 
 	// knowledge_graph (entities + relations)
@@ -404,6 +457,7 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(exportEntities)
 			addToTar(tw, prefix+"knowledge_graph/entities.jsonl", data) //nolint:errcheck
 		}
+		c.kgEntities = len(entities)
 		relations, err := pg.ExportKGRelations(ctx, h.db, ag.ID)
 		if err != nil {
 			slog.Warn("team.export.agent.kg_relations", "agent_id", ag.ID, "error", err)
@@ -421,6 +475,7 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(exportRelations)
 			addToTar(tw, prefix+"knowledge_graph/relations.jsonl", data) //nolint:errcheck
 		}
+		c.kgRelations = len(relations)
 	}
 
 	// cron
@@ -433,6 +488,7 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(jobs)
 			addToTar(tw, prefix+"cron/jobs.jsonl", data) //nolint:errcheck
 		}
+		c.cronJobs = len(jobs)
 	}
 
 	// user_profiles
@@ -445,6 +501,7 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(profiles)
 			addToTar(tw, prefix+"user_profiles.jsonl", data) //nolint:errcheck
 		}
+		c.profiles = len(profiles)
 	}
 
 	// user_overrides
@@ -457,13 +514,15 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 			data, _ := marshalJSONL(overrides)
 			addToTar(tw, prefix+"user_overrides.jsonl", data) //nolint:errcheck
 		}
+		c.overrides = len(overrides)
 	}
 
 	// workspace
 	if sections["workspace"] && ag.Workspace != "" {
 		wsPath := config.ExpandHome(ag.Workspace)
-		h.exportWorkspaceFilesWithPrefix(ctx, tw, wsPath, prefix+"workspace/", progressFn) //nolint:errcheck
+		wsCount, _, _ := h.exportWorkspaceFilesWithPrefix(ctx, tw, wsPath, prefix+"workspace/", nil)
+		c.wsFiles = wsCount
 	}
 
-	return nil
+	return c, nil
 }
