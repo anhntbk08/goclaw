@@ -17,6 +17,7 @@ export interface ExportPreview {
   mcp_grants: number;
   cron_jobs: number;
   config_perms: number;
+  workspace_files: number;
 }
 
 export function useExportPreview(agentId: string | null) {

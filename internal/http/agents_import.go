@@ -49,6 +49,7 @@ type importArchive struct {
 	configPerms      []pg.ConfigPermissionExport
 	userProfiles     []pg.UserProfileExport
 	userOverrides    []pg.UserOverrideExport
+	workspaceFiles   map[string][]byte // relative path → content
 }
 
 type importContextFile struct {
@@ -86,6 +87,7 @@ func parseImportSections(raw string) map[string]bool {
 		"permissions":     true,
 		"user_profiles":   true,
 		"user_overrides":  true,
+		"workspace":       true,
 	}
 	if raw == "" {
 		return all
@@ -526,6 +528,18 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "user_overrides", Status: "done", Current: len(arc.userOverrides), Total: len(arc.userOverrides)})
+		}
+	}
+
+	// Section: workspace files
+	if sections["workspace"] && len(arc.workspaceFiles) > 0 {
+		wsPath := config.ExpandHome(fmt.Sprintf("%s/%s", h.defaultWorkspace, ag.AgentKey))
+		imported, wsErr := extractWorkspaceFiles(wsPath, arc.workspaceFiles, false)
+		if wsErr != nil {
+			slog.Warn("import: workspace extraction failed", "path", wsPath, "error", wsErr)
+		}
+		if progressFn != nil {
+			progressFn(ProgressEvent{Phase: "workspace", Status: "done", Current: imported, Total: len(arc.workspaceFiles)})
 		}
 	}
 

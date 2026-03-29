@@ -43,7 +43,8 @@ func readImportArchive(r io.Reader) (*importArchive, error) {
 	}
 
 	arc := &importArchive{
-		memoryUsers: make(map[string][]MemoryExport),
+		memoryUsers:    make(map[string][]MemoryExport),
+		workspaceFiles: make(map[string][]byte),
 	}
 
 	if raw, ok := entries["manifest.json"]; ok {
@@ -107,6 +108,11 @@ func readImportArchive(r io.Reader) (*importArchive, error) {
 				return nil, fmt.Errorf("parse kg relations: %w", err)
 			}
 			arc.kgRelations = relations
+		case strings.HasPrefix(name, "workspace/"):
+			rel := strings.TrimPrefix(name, "workspace/")
+			if rel != "" {
+				arc.workspaceFiles[rel] = data
+			}
 		}
 	}
 

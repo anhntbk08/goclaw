@@ -8,15 +8,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/nextlevelbuilder/goclaw/internal/config"
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
@@ -100,7 +103,25 @@ func (h *AgentsHandler) handleExportPreview(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeJSON(w, http.StatusOK, counts)
+	// Count workspace files (filesystem, not DB)
+	var workspaceFiles int
+	if ag.Workspace != "" {
+		wsPath := config.ExpandHome(ag.Workspace)
+		if info, statErr := os.Stat(wsPath); statErr == nil && info.IsDir() {
+			filepath.WalkDir(wsPath, func(_ string, d fs.DirEntry, _ error) error { //nolint:errcheck
+				if !d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
+					workspaceFiles++
+				}
+				return nil
+			})
+		}
+	}
+
+	type previewResponse struct {
+		*pg.ExportPreview
+		WorkspaceFiles int `json:"workspace_files"`
+	}
+	writeJSON(w, http.StatusOK, previewResponse{ExportPreview: counts, WorkspaceFiles: workspaceFiles})
 }
 
 // handleExport dispatches to SSE streaming or direct download based on ?stream= param.
@@ -583,6 +604,16 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "user_overrides", Status: "done", Detail: fmt.Sprintf("%d overrides", len(overrides))})
 		}
+	}
+
+	// Section: workspace files
+	if sections["workspace"] && ag.Workspace != "" {
+		wsPath := config.ExpandHome(ag.Workspace)
+		fileCount, totalBytes, wsErr := h.exportWorkspaceFiles(ctx, tw, wsPath, progressFn)
+		if wsErr != nil {
+			slog.Warn("export: workspace walk failed", "path", wsPath, "error", wsErr)
+		}
+		manifest.Sections["workspace"] = map[string]any{"file_count": fileCount, "total_bytes": totalBytes}
 	}
 
 	// Manifest last — has accurate final counts

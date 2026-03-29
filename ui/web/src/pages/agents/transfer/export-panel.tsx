@@ -60,7 +60,7 @@ export function ExportPanel({ agents, initialAgentId }: ExportPanelProps) {
       { id: "cron", labelKey: "transfer.sections.cron", count: p?.cron_jobs },
       { id: "permissions", labelKey: "transfer.sections.permissions", count: p?.config_perms },
       { id: "sessions", labelKey: "transfer.sections.sessions", comingSoon: true, hint: "transfer.hints.sessions" },
-      { id: "workspace", labelKey: "transfer.sections.workspace", comingSoon: true },
+      { id: "workspace", labelKey: "transfer.sections.workspace", count: p?.workspace_files },
       { id: "media", labelKey: "transfer.sections.media", comingSoon: true, hint: "transfer.hints.media" },
     ];
   }, [preview]);
