@@ -61,6 +61,12 @@ export function ExportPanel({ agents, initialAgentId }: ExportPanelProps) {
       { id: "permissions", labelKey: "transfer.sections.permissions", count: p?.config_perms },
       { id: "sessions", labelKey: "transfer.sections.sessions", comingSoon: true, hint: "transfer.hints.sessions" },
       { id: "workspace", labelKey: "transfer.sections.workspace", count: p?.workspace_files },
+      { id: "team", labelKey: "transfer.sections.team",
+        countLabel: p && (p.team_tasks > 0 || p.team_members > 0)
+          ? `${p.team_members} members / ${p.team_tasks} tasks`
+          : undefined,
+        hint: "transfer.hints.team",
+      },
       { id: "media", labelKey: "transfer.sections.media", comingSoon: true, hint: "transfer.hints.media" },
     ];
   }, [preview]);

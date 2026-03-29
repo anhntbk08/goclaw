@@ -18,6 +18,9 @@ export interface ExportPreview {
   cron_jobs: number;
   config_perms: number;
   workspace_files: number;
+  team_tasks: number;
+  team_members: number;
+  agent_links: number;
 }
 
 export function useExportPreview(agentId: string | null) {

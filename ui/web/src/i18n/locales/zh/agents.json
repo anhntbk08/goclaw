@@ -784,11 +784,13 @@
       "permissions": "权限",
       "sessions": "会话",
       "workspace": "工作区文件",
+      "team": "团队",
       "media": "媒体文件"
     },
     "hints": {
       "sessions": "可能非常大",
       "media": "可能非常大",
+      "team": "团队元数据、成员、任务、链接",
       "mergeOverwrite": "同名文件将被覆盖",
       "mergeUpsert": "文档按路径更新插入",
       "mergeKgUpsert": "实体按external_id更新插入",

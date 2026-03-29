@@ -784,11 +784,13 @@
       "permissions": "Quyền hạn",
       "sessions": "Phiên chat",
       "workspace": "File workspace",
+      "team": "Team",
       "media": "File media"
     },
     "hints": {
       "sessions": "Có thể rất lớn",
       "media": "Có thể rất lớn",
+      "team": "Metadata team, thành viên, tasks, links",
       "mergeOverwrite": "File cùng tên sẽ bị ghi đè",
       "mergeUpsert": "Tài liệu upsert theo path",
       "mergeKgUpsert": "Thực thể upsert theo external_id",

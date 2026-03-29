@@ -88,6 +88,7 @@ export function ImportPanel({ agents }: ImportPanelProps) {
     { id: "user_profiles", labelKey: "transfer.sections.userProfiles" },
     { id: "user_overrides", labelKey: "transfer.sections.userOverrides" },
     { id: "workspace", labelKey: "transfer.sections.workspace", hint: "transfer.hints.mergeFiles" },
+    { id: "team", labelKey: "transfer.sections.team", hint: "transfer.hints.team" },
   ];
 
   // === Running / Complete / Error states ===

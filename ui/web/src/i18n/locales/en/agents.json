@@ -784,11 +784,13 @@
       "permissions": "Permissions",
       "sessions": "Sessions",
       "workspace": "Workspace Files",
+      "team": "Team",
       "media": "Media Files"
     },
     "hints": {
       "sessions": "Can be very large",
       "media": "Can be very large",
+      "team": "Team metadata, members, tasks, links",
       "mergeOverwrite": "Existing files with same name will be overwritten",
       "mergeUpsert": "Documents upserted by path",
       "mergeKgUpsert": "Entities upserted by external_id",
