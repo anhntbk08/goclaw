@@ -86,7 +86,7 @@ export function ExportPanel({ agents, initialAgentId }: ExportPanelProps) {
     return (
       <div className="space-y-4">
         <div>
-          <Label>{t("transfer.selectAgent")}</Label>
+          <Label className="mb-1.5">{t("transfer.selectAgent")}</Label>
           <Combobox
             value={agentId}
             onChange={setAgentId}

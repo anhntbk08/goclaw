@@ -236,7 +236,7 @@ export function ImportPanel({ agents }: ImportPanelProps) {
           {mode === "merge" && (
             <>
               <div>
-                <Label>{t("transfer.targetAgent")}</Label>
+                <Label className="mb-1.5">{t("transfer.targetAgent")}</Label>
                 <Combobox
                   value={mergeTarget}
                   onChange={setMergeTarget}
