@@ -4,31 +4,27 @@ import { useHttp } from "@/hooks/use-ws";
 import { toast } from "@/stores/use-toast-store";
 import { useSseProgress, type UseSseProgressReturn } from "@/hooks/use-sse-progress";
 
-export interface ExportPreview {
-  context_files: number;
-  user_context_files_users: number;
-  memory_global: number;
-  memory_per_user: number;
-  kg_entities: number;
-  kg_relations: number;
-  user_profiles: number;
-  user_overrides: number;
-  cron_jobs: number;
-  workspace_files: number;
+export interface TeamExportPreview {
+  team_name: string;
+  team_id: string;
+  tasks: number;
+  members: number;
+  agent_links: number;
+  agent_count: number;
 }
 
-export function useExportPreview(agentId: string | null) {
+export function useTeamExportPreview(teamId: string | null) {
   const http = useHttp();
   return useQuery({
-    queryKey: ["export-preview", agentId],
-    enabled: !!agentId,
-    queryFn: () => http.get<ExportPreview>(`/v1/agents/${agentId}/export/preview`),
+    queryKey: ["team-export-preview", teamId],
+    enabled: !!teamId,
+    queryFn: () => http.get<TeamExportPreview>(`/v1/teams/${teamId}/export/preview`),
     staleTime: 30_000,
   });
 }
 
-export function useExport(): UseSseProgressReturn & {
-  startExport: (agentId: string, sections: string[]) => void;
+export function useTeamExport(): UseSseProgressReturn & {
+  startExport: (teamId: string) => void;
   downloadReady: boolean;
   download: () => void;
 } {
@@ -42,15 +38,14 @@ export function useExport(): UseSseProgressReturn & {
   const origResult = sse.result;
   if (origResult?.download_url && !downloadUrl) {
     setDownloadUrl(origResult.download_url);
-    setDownloadName(origResult.file_name ?? "export.tar.gz");
+    setDownloadName(origResult.file_name ?? "team-export.tar.gz");
   }
 
   const startExport = useCallback(
-    (agentId: string, sections: string[]) => {
+    (teamId: string) => {
       setDownloadUrl(null);
       setDownloadName("");
-      const params = new URLSearchParams({ sections: sections.join(","), stream: "true" });
-      const url = `${window.location.origin}/v1/agents/${agentId}/export?${params}`;
+      const url = `${window.location.origin}/v1/teams/${teamId}/export?stream=true`;
       sse.startGet(url);
     },
     [sse],

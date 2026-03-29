@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Info } from "lucide-react";
+import { Download, Package, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
@@ -9,138 +9,138 @@ import { useAgents } from "@/pages/agents/hooks/use-agents";
 import { SectionPicker, PRESETS, type SectionDef } from "./section-picker";
 import { useExportPreview, useExport } from "./hooks/use-agent-export";
 
-const EXPORT_SECTIONS: SectionDef[] = [
-  { id: "config" },
-  { id: "context_files" },
-  { id: "user_data", children: ["user_context_files", "user_profiles", "user_overrides"] },
-  { id: "memory", children: ["memory_global", "memory_per_user"] },
-  { id: "knowledge_graph" },
-  { id: "cron" },
-  { id: "workspace" },
-  { id: "sessions", comingSoon: true },
-  { id: "media", comingSoon: true },
-];
-
-const PRESET_BUTTONS = ["minimal", "standard", "complete"] as const;
+const PRESET_KEYS = ["minimal", "standard", "complete"] as const;
 
 export function AgentExportPanel() {
   const { t } = useTranslation("import-export");
   const { agents } = useAgents();
   const [agentId, setAgentId] = useState("");
-  const [selected, setSelected] = useState<string[]>(PRESETS["standard"] ?? []);
+  const [selected, setSelected] = useState<Set<string>>(new Set(PRESETS.standard));
 
-  const { data: preview, isFetching: previewLoading } = useExportPreview(agentId || null);
-  const { steps, status, error, elapsed, result, startExport, download } = useExport();
+  const agent = agents.find((a) => a.id === agentId);
+  const { data: preview } = useExportPreview(agentId || null);
+  const exp = useExport();
 
   const agentOptions = useMemo(
     () => agents.map((a) => ({ value: a.id, label: a.display_name || a.agent_key })),
     [agents],
   );
 
-  const activeSections = useMemo(
-    () => selected.filter((s) => !["user_data", "memory"].includes(s)),
-    [selected],
-  );
+  const sections: SectionDef[] = useMemo(() => {
+    const p = preview;
+    return [
+      { id: "config", labelKey: "sections.config", required: true },
+      { id: "context_files", labelKey: "sections.context_files", count: p?.context_files },
+      {
+        id: "user_data", labelKey: "sections.user_data", count: p?.user_context_files_users,
+        countLabel: p ? `${p.user_context_files_users} users` : undefined,
+        children: [
+          { id: "user_context_files", labelKey: "sections.user_context_files", count: p?.user_context_files_users },
+          { id: "user_profiles", labelKey: "sections.user_profiles", count: p?.user_profiles },
+          { id: "user_overrides", labelKey: "sections.user_overrides", count: p?.user_overrides },
+        ],
+      },
+      {
+        id: "memory", labelKey: "sections.memory",
+        count: p ? p.memory_global + p.memory_per_user : undefined,
+        countLabel: p ? `${p.memory_global + p.memory_per_user} docs` : undefined,
+        children: [
+          { id: "memory_global", labelKey: "sections.memory_global", count: p?.memory_global },
+          { id: "memory_per_user", labelKey: "sections.memory_per_user", count: p?.memory_per_user },
+        ],
+      },
+      {
+        id: "knowledge_graph", labelKey: "sections.knowledge_graph",
+        countLabel: p ? `${p.kg_entities.toLocaleString()} ent / ${p.kg_relations.toLocaleString()} rel` : undefined,
+      },
+      { id: "cron", labelKey: "sections.cron", count: p?.cron_jobs },
+      { id: "workspace", labelKey: "sections.workspace", count: p?.workspace_files },
+      { id: "sessions", labelKey: "sections.sessions", comingSoon: true },
+      { id: "media", labelKey: "sections.media", comingSoon: true },
+    ];
+  }, [preview]);
+
+  const handlePreset = (preset: string) => setSelected(new Set(PRESETS[preset] ?? []));
 
   const handleExport = () => {
-    if (!agentId) return;
-    startExport(agentId, activeSections);
+    if (!agent) return;
+    const secs = Array.from(selected).filter((s) => !s.startsWith("memory_") && !s.startsWith("user_"));
+    exp.startExport(agent.id, secs);
   };
 
-  const applyPreset = (preset: keyof typeof PRESETS) => {
-    setSelected(PRESETS[preset] ?? []);
-  };
-
-  const isRunning = status === "running";
-  const isDone = status === "complete";
-  const isError = status === "error";
-
-  return (
-    <div className="space-y-5">
-      {/* Info note */}
-      <div className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-300">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{t("export.infoNote")}</span>
-      </div>
-
-      {/* Agent selector */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">{t("export.agent")}</Label>
-        <Combobox
-          value={agentId}
-          onChange={setAgentId}
-          options={agentOptions}
-          placeholder={t("export.agentPlaceholder")}
-        />
-      </div>
-
-      {/* Preset buttons */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">{t("export.presetsLabel")}</Label>
-        <div className="flex flex-wrap gap-2">
-          {PRESET_BUTTONS.map((p) => (
-            <Button
-              key={p}
-              variant="outline"
-              size="sm"
-              onClick={() => applyPreset(p)}
-              className="h-7 text-xs"
-            >
-              {t(`presets.${p}`)}
-            </Button>
-          ))}
+  // Idle state
+  if (exp.status === "idle") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-3 py-2">
+          <Info className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">{t("export.infoNote")}</p>
         </div>
-      </div>
 
-      {/* Section picker */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">{t("export.sections")}</Label>
-        {agentId && preview && !previewLoading && (
-          <p className="text-xs text-muted-foreground">
-            {preview.context_files} context files · {preview.memory_global + preview.memory_per_user} memory docs ·{" "}
-            {preview.kg_entities} KG entities · {preview.cron_jobs} cron jobs · {preview.workspace_files} workspace files
-          </p>
-        )}
-        {previewLoading && (
-          <p className="text-xs text-muted-foreground">{t("export.previewLoading")}</p>
-        )}
-        <SectionPicker
-          sections={EXPORT_SECTIONS}
-          selected={selected}
-          onChange={setSelected}
-        />
-      </div>
+        <div>
+          <Label className="mb-1.5">{t("export.agent")}</Label>
+          <Combobox value={agentId} onChange={setAgentId} options={agentOptions} placeholder={t("export.agentPlaceholder")} />
+        </div>
 
-      {/* Progress */}
-      {(isRunning || isDone || isError) && (
-        <OperationProgress steps={steps} elapsed={elapsed} />
-      )}
+        {agentId && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{t("export.presetsLabel")}:</span>
+              {PRESET_KEYS.map((p) => (
+                <Button
+                  key={p}
+                  variant={PRESETS[p] && setsEqual(selected, PRESETS[p]) ? "default" : "outline"}
+                  size="xs"
+                  onClick={() => handlePreset(p)}
+                >
+                  {t(`presets.${p}`)}
+                </Button>
+              ))}
+            </div>
 
-      {/* Error detail */}
-      {isError && error && (
-        <p className="text-sm text-destructive">{error.detail}</p>
-      )}
+            <SectionPicker sections={sections} selected={selected} onChange={setSelected} />
 
-      {/* Actions */}
-      <div className="flex gap-2">
-        <Button
-          onClick={handleExport}
-          disabled={!agentId || isRunning}
-          className="flex-1"
-        >
-          {isRunning ? t("export.exporting") : t("export.startExport")}
-        </Button>
-        {isDone && result?.download_url && (
-          <Button variant="outline" onClick={download}>
-            <Download className="mr-1.5 h-4 w-4" />
-            {t("export.download")}
-          </Button>
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-sm text-muted-foreground">
+                {agent && (agent.display_name || agent.agent_key)}
+              </span>
+              <Button onClick={handleExport} disabled={!agentId || selected.size === 0}>
+                <Package className="mr-1.5 h-4 w-4" />
+                {t("export.startExport")}
+              </Button>
+            </div>
+          </>
         )}
       </div>
+    );
+  }
 
-      {isDone && (
-        <p className="text-sm text-muted-foreground text-center">{t("export.done")}</p>
+  // Running / complete / error
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-medium">
+        {exp.status === "complete" ? t("export.done") : exp.status === "error" ? t("export.errorTitle") : t("export.exporting")}
+      </h3>
+      <OperationProgress steps={exp.steps} elapsed={exp.elapsed} />
+      {exp.status === "error" && exp.error && (
+        <p className="text-sm text-destructive">{exp.error.detail}</p>
       )}
+      <div className="flex items-center justify-end gap-2 pt-2">
+        {exp.status === "running" && <Button variant="outline" onClick={exp.cancel}>{t("common.cancel", { ns: "common" })}</Button>}
+        {exp.status === "complete" && exp.downloadReady && (
+          <>
+            <Button variant="outline" onClick={exp.reset}>{t("export.startExport")}</Button>
+            <Button onClick={exp.download}><Download className="mr-1.5 h-4 w-4" />{t("export.download")}</Button>
+          </>
+        )}
+        {exp.status === "error" && <Button variant="outline" onClick={exp.reset}>{t("export.startExport")}</Button>}
+      </div>
     </div>
   );
+}
+
+function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
 }

@@ -90,5 +90,13 @@
     "minimal": "Minimal",
     "standard": "Standard",
     "complete": "Complete"
-  }
+  },
+  "teamExportNote": "Team export includes all member agents and their data (context files, memory, knowledge graph, cron, workspace).",
+  "teamSelectPlaceholder": "Select a team...",
+  "teamDropHere": "Drop team archive file here or click to browse",
+  "teamDropFormats": "Supports .tar.gz files",
+  "teamDontClose": "Don't close this page — import in progress",
+  "teamImportAnother": "Import Another",
+  "teamTryAgain": "Try Again",
+  "teamChangeFile": "Change File"
 }

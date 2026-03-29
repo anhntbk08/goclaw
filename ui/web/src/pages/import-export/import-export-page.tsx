@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AgentExportPanel } from "./agent-export-panel";
 import { AgentImportPanel } from "./agent-import-panel";
+import { TeamExportPanel } from "./team-export-panel";
+import { TeamImportPanel } from "./team-import-panel";
+import { useTeams } from "@/pages/teams/hooks/use-teams";
 
-function ComingSoonPlaceholder({ title, description }: { title: string; description: string }) {
+function ComingSoonPlaceholder({ label }: { label: string }) {
   return (
     <div className="rounded-lg border border-dashed px-6 py-12 text-center">
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      <p className="text-sm text-muted-foreground">{label} — coming soon</p>
     </div>
   );
 }
@@ -19,9 +21,10 @@ function ComingSoonPlaceholder({ title, description }: { title: string; descript
 export function ImportExportPage() {
   const { t } = useTranslation("import-export");
   const [params, setParams] = useSearchParams();
+  const { teams, loading: teamsLoading, load: loadTeams } = useTeams();
 
-  const scopeTab = params.get("tab") ?? "agents";
-  const agentTab = params.get("agent") ?? "export";
+  const scopeTab = params.get("tab") ?? "teams";
+  const innerTab = params.get("inner") ?? "export";
 
   const setScopeTab = (v: string) => {
     const next = new URLSearchParams(params);
@@ -29,9 +32,9 @@ export function ImportExportPage() {
     setParams(next, { replace: true });
   };
 
-  const setAgentTab = (v: string) => {
+  const setInnerTab = (v: string) => {
     const next = new URLSearchParams(params);
-    next.set("agent", v);
+    next.set("inner", v);
     setParams(next, { replace: true });
   };
 
@@ -58,26 +61,32 @@ export function ImportExportPage() {
             <TabsTrigger value="skills-mcp">{t("tabs.skillsMcp")}</TabsTrigger>
           </TabsList>
 
-          {/* Teams — coming soon */}
+          {/* Teams */}
           <TabsContent value="teams" className="mt-4">
-            <ComingSoonPlaceholder
-              title={t("comingSoon.title")}
-              description={t("comingSoon.description")}
-            />
-          </TabsContent>
-
-          {/* Agents — export / import inner tabs */}
-          <TabsContent value="agents" className="mt-4">
-            <Tabs value={agentTab} onValueChange={setAgentTab}>
+            <Tabs value={innerTab} onValueChange={setInnerTab}>
               <TabsList>
                 <TabsTrigger value="export">{t("tabs.export")}</TabsTrigger>
                 <TabsTrigger value="import">{t("tabs.import")}</TabsTrigger>
               </TabsList>
+              <TabsContent value="export" className="mt-4">
+                <TeamExportPanel teams={teams} loading={teamsLoading} loadTeams={loadTeams} />
+              </TabsContent>
+              <TabsContent value="import" className="mt-4">
+                <TeamImportPanel />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
 
+          {/* Agents */}
+          <TabsContent value="agents" className="mt-4">
+            <Tabs value={innerTab} onValueChange={setInnerTab}>
+              <TabsList>
+                <TabsTrigger value="export">{t("tabs.export")}</TabsTrigger>
+                <TabsTrigger value="import">{t("tabs.import")}</TabsTrigger>
+              </TabsList>
               <TabsContent value="export" className="mt-4">
                 <AgentExportPanel />
               </TabsContent>
-
               <TabsContent value="import" className="mt-4">
                 <AgentImportPanel />
               </TabsContent>
@@ -86,10 +95,7 @@ export function ImportExportPage() {
 
           {/* Skills & MCP — coming soon */}
           <TabsContent value="skills-mcp" className="mt-4">
-            <ComingSoonPlaceholder
-              title={t("comingSoon.title")}
-              description={t("comingSoon.description")}
-            />
+            <ComingSoonPlaceholder label={t("tabs.skillsMcp")} />
           </TabsContent>
         </Tabs>
       </div>
