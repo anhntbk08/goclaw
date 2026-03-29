@@ -55,8 +55,6 @@ export function AgentExportPanel() {
       },
       { id: "cron", labelKey: "sections.cron", count: p?.cron_jobs },
       { id: "workspace", labelKey: "sections.workspace", count: p?.workspace_files },
-      { id: "sessions", labelKey: "sections.sessions", comingSoon: true },
-      { id: "media", labelKey: "sections.media", comingSoon: true },
     ];
   }, [preview]);
 
