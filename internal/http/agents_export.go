@@ -768,8 +768,15 @@ func parseExportSections(raw string) map[string]bool {
 }
 
 // exportFileName builds the tar.gz filename for a given agent key.
+// Strips characters unsafe for Content-Disposition headers.
 func exportFileName(agentKey string) string {
-	return fmt.Sprintf("agent-%s-%s.tar.gz", agentKey, time.Now().UTC().Format("20060102"))
+	safe := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return '-'
+	}, agentKey)
+	return fmt.Sprintf("agent-%s-%s.tar.gz", safe, time.Now().UTC().Format("20060102"))
 }
 
 // jsonIndent marshals v to indented JSON bytes.

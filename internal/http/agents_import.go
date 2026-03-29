@@ -256,7 +256,7 @@ func (h *AgentsHandler) handleMergeImport(w http.ResponseWriter, r *http.Request
 		summary, mergeErr := h.doMergeImport(r.Context(), ag, arc, sections, progressFn)
 		if mergeErr != nil {
 			slog.Error("agents.merge_import.sse", "agent_id", ag.ID, "error", mergeErr)
-			sendSSE(w, flusher, "error", map[string]any{"phase": "merge", "detail": mergeErr.Error(), "rolled_back": true})
+			sendSSE(w, flusher, "error", map[string]any{"phase": "merge", "detail": mergeErr.Error(), "rolled_back": false})
 			return
 		}
 		sendSSE(w, flusher, "complete", summary)
@@ -385,7 +385,9 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 			progressFn(ProgressEvent{Phase: "memory", Status: "done", Current: summary.MemoryDocs, Total: totalDocs})
 		}
 		// Async re-index
-		go h.reindexImportedMemory(context.WithoutCancel(ctx), ag.ID.String(), arc)
+		// Extract paths before goroutine to allow arc GC
+		paths := collectMemoryPaths(arc)
+		go h.reindexMemoryPaths(context.WithoutCancel(ctx), ag.ID.String(), paths)
 	}
 
 	// Section: knowledge_graph
@@ -617,18 +619,31 @@ func (h *AgentsHandler) ingestKGByUser(ctx context.Context, agentID string, arc 
 	return nil
 }
 
-// reindexImportedMemory re-indexes all imported documents in background.
-func (h *AgentsHandler) reindexImportedMemory(ctx context.Context, agentID string, arc *importArchive) {
+// memoryPathEntry is a lightweight reference for background re-indexing (avoids holding full arc).
+type memoryPathEntry struct {
+	userID string
+	path   string
+}
+
+// collectMemoryPaths extracts just the paths from arc so the full archive can be GC'd.
+func collectMemoryPaths(arc *importArchive) []memoryPathEntry {
+	var paths []memoryPathEntry
 	for _, doc := range arc.memoryGlobal {
-		if err := h.memoryStore.IndexDocument(ctx, agentID, "", doc.Path); err != nil {
-			slog.Warn("agents.import.reindex", "agent_id", agentID, "path", doc.Path, "error", err)
-		}
+		paths = append(paths, memoryPathEntry{path: doc.Path})
 	}
 	for uid, docs := range arc.memoryUsers {
 		for _, doc := range docs {
-			if err := h.memoryStore.IndexDocument(ctx, agentID, uid, doc.Path); err != nil {
-				slog.Warn("agents.import.reindex", "agent_id", agentID, "user_id", uid, "path", doc.Path, "error", err)
-			}
+			paths = append(paths, memoryPathEntry{userID: uid, path: doc.Path})
+		}
+	}
+	return paths
+}
+
+// reindexMemoryPaths re-indexes imported memory documents in background.
+func (h *AgentsHandler) reindexMemoryPaths(ctx context.Context, agentID string, paths []memoryPathEntry) {
+	for _, p := range paths {
+		if err := h.memoryStore.IndexDocument(ctx, agentID, p.userID, p.path); err != nil {
+			slog.Warn("agents.import.reindex", "agent_id", agentID, "user_id", p.userID, "path", p.path, "error", err)
 		}
 	}
 }
