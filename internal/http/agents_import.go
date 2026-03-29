@@ -414,7 +414,7 @@ func (h *AgentsHandler) ingestKGByUser(ctx context.Context, agentID string, arc 
 		})
 	}
 	for uid, g := range groups {
-		if err := h.kgStore.IngestExtraction(ctx, agentID, uid, g.entities, g.relations); err != nil {
+		if _, err := h.kgStore.IngestExtraction(ctx, agentID, uid, g.entities, g.relations); err != nil {
 			return fmt.Errorf("user %s: %w", uid, err)
 		}
 	}
