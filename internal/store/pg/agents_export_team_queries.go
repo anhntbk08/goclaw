@@ -111,7 +111,7 @@ func ExportTeamByLead(ctx context.Context, db *sql.DB, agentID uuid.UUID) (*Team
 
 // exportTeamMembers returns members (excluding lead) with agent_key resolved.
 func exportTeamMembers(ctx context.Context, db *sql.DB, teamID, leadAgentID uuid.UUID) ([]TeamMemberExport, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 3)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 3, "m")
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +379,7 @@ func ExportTeamEvents(ctx context.Context, db *sql.DB, teamID uuid.UUID, taskUID
 
 // ExportAgentLinks returns all agent links where agentID is source or target.
 func ExportAgentLinks(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]AgentLinkExport, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 2, "l")
 	if err != nil {
 		return nil, err
 	}

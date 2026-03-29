@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useHttp } from "@/hooks/use-ws";
 import { toast } from "@/stores/use-toast-store";
@@ -39,11 +39,12 @@ export function useExport(): UseSseProgressReturn & {
   const authHeaders = useCallback(() => http.getAuthHeaders(), [http]);
   const sse = useSseProgress(authHeaders);
 
-  const origResult = sse.result;
-  if (origResult?.download_url && !downloadUrl) {
-    setDownloadUrl(origResult.download_url);
-    setDownloadName(origResult.file_name ?? "export.tar.gz");
-  }
+  useEffect(() => {
+    if (sse.result?.download_url && !downloadUrl) {
+      setDownloadUrl(sse.result.download_url);
+      setDownloadName(sse.result.file_name ?? "export.tar.gz");
+    }
+  }, [sse.result, downloadUrl]);
 
   const startExport = useCallback(
     (agentId: string, sections: string[]) => {

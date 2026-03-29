@@ -20,22 +20,22 @@ import (
 
 // teamImportArchive holds parsed contents of a team export archive.
 type teamImportArchive struct {
-	manifest   *TeamExportManifest
-	teamMeta   *pg.TeamExport
-	teamMembers []pg.TeamMemberExport
+	manifest      *TeamExportManifest
+	teamMeta      *pg.TeamExport
+	teamMembers   []pg.TeamMemberExport
+	teamTasks     []pg.TeamTaskExport
+	teamComments  []pg.TeamTaskCommentExport
+	teamEvents    []pg.TeamTaskEventExport
+	teamLinks     []pg.AgentLinkExport
+	teamWorkspace map[string][]byte // relative path → content
 	// agentArcs maps agent_key → importArchive for each member agent in the team archive
 	agentArcs map[string]*importArchive
 }
 
 // handleTeamImport imports a team archive (POST /v1/teams/import).
 func (h *AgentsHandler) handleTeamImport(w http.ResponseWriter, r *http.Request) {
-	userID := store.UserIDFromContext(r.Context())
 	locale := store.LocaleFromContext(r.Context())
-
-	if !h.canImport(userID) {
-		writeError(w, http.StatusForbidden, protocol.ErrUnauthorized, i18n.T(locale, i18n.MsgNoAccess, "team import"))
-		return
-	}
+	// Auth already enforced by adminMiddleware on the route.
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxImportBodySize)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
@@ -140,6 +140,54 @@ func readTeamImportArchive(r io.Reader) (*teamImportArchive, error) {
 		arc.teamMembers = items
 	}
 
+	if raw, ok := entries["team/tasks.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskExport](raw)
+		if err != nil {
+			slog.Warn("team.import: parse team/tasks.jsonl", "error", err)
+		} else {
+			arc.teamTasks = items
+		}
+	}
+
+	if raw, ok := entries["team/comments.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskCommentExport](raw)
+		if err != nil {
+			slog.Warn("team.import: parse team/comments.jsonl", "error", err)
+		} else {
+			arc.teamComments = items
+		}
+	}
+
+	if raw, ok := entries["team/events.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskEventExport](raw)
+		if err != nil {
+			slog.Warn("team.import: parse team/events.jsonl", "error", err)
+		} else {
+			arc.teamEvents = items
+		}
+	}
+
+	if raw, ok := entries["team/links.jsonl"]; ok {
+		items, err := parseJSONL[pg.AgentLinkExport](raw)
+		if err != nil {
+			slog.Warn("team.import: parse team/links.jsonl", "error", err)
+		} else {
+			arc.teamLinks = items
+		}
+	}
+
+	// team/workspace/* files
+	arc.teamWorkspace = make(map[string][]byte)
+	for name, data := range entries {
+		if !strings.HasPrefix(name, "team/workspace/") {
+			continue
+		}
+		rel := strings.TrimPrefix(name, "team/workspace/")
+		if rel != "" {
+			arc.teamWorkspace[rel] = data
+		}
+	}
+
 	// Group agents/{key}/* entries by agent key
 	agentEntries := make(map[string]map[string][]byte)
 	for name, data := range entries {
@@ -213,6 +261,55 @@ func buildAgentArcFromEntries(entries map[string][]byte) (*importArchive, error)
 					content:  string(data),
 				})
 			}
+		case strings.HasPrefix(name, "user_context_files/"):
+			rest := strings.TrimPrefix(name, "user_context_files/")
+			if idx := strings.Index(rest, "/"); idx > 0 {
+				userID := rest[:idx]
+				fileName := rest[idx+1:]
+				if fileName != "" {
+					arc.userContextFiles = append(arc.userContextFiles, importUserContextFile{
+						userID:   userID,
+						fileName: fileName,
+						content:  string(data),
+					})
+				}
+			}
+		case name == "memory/global.jsonl":
+			items, err := parseJSONL[MemoryExport](data)
+			if err == nil {
+				arc.memoryGlobal = items
+			}
+		case strings.HasPrefix(name, "memory/users/") && strings.HasSuffix(name, ".jsonl"):
+			items, err := parseJSONL[MemoryExport](data)
+			if err == nil {
+				uid := strings.TrimSuffix(strings.TrimPrefix(name, "memory/users/"), ".jsonl")
+				arc.memoryUsers[uid] = items
+			}
+		case name == "knowledge_graph/entities.jsonl":
+			items, err := parseJSONL[KGEntityExport](data)
+			if err == nil {
+				arc.kgEntities = items
+			}
+		case name == "knowledge_graph/relations.jsonl":
+			items, err := parseJSONL[KGRelationExport](data)
+			if err == nil {
+				arc.kgRelations = items
+			}
+		case name == "cron/jobs.jsonl":
+			items, err := parseJSONL[pg.CronJobExport](data)
+			if err == nil {
+				arc.cronJobs = items
+			}
+		case name == "user_profiles.jsonl":
+			items, err := parseJSONL[pg.UserProfileExport](data)
+			if err == nil {
+				arc.userProfiles = items
+			}
+		case name == "user_overrides.jsonl":
+			items, err := parseJSONL[pg.UserOverrideExport](data)
+			if err == nil {
+				arc.userOverrides = items
+			}
 		case strings.HasPrefix(name, "workspace/"):
 			rel := strings.TrimPrefix(name, "workspace/")
 			if rel != "" {
@@ -281,7 +378,15 @@ func (h *AgentsHandler) doTeamImport(ctx context.Context, r *http.Request, teamA
 			continue
 		}
 
-		sections := map[string]bool{"context_files": true, "workspace": true}
+		sections := map[string]bool{
+			"context_files":  true,
+			"memory":         true,
+			"knowledge_graph": true,
+			"cron":           true,
+			"user_profiles":  true,
+			"user_overrides": true,
+			"workspace":      true,
+		}
 		if _, err := h.doMergeImport(ctx, ag, agArc, sections, progressFn); err != nil {
 			slog.Warn("team.import: merge agent data failed", "key", dedupedKey, "error", err)
 		}
@@ -321,9 +426,13 @@ func (h *AgentsHandler) doTeamImport(ctx context.Context, r *http.Request, teamA
 	syntheticArc := &importArchive{
 		memoryUsers:    make(map[string][]MemoryExport),
 		workspaceFiles: make(map[string][]byte),
-		teamWorkspace:  make(map[string][]byte),
+		teamWorkspace:  teamArc.teamWorkspace,
 		teamMeta:       teamArc.teamMeta,
 		teamMembers:    teamArc.teamMembers,
+		teamTasks:      teamArc.teamTasks,
+		teamComments:   teamArc.teamComments,
+		teamEvents:     teamArc.teamEvents,
+		teamLinks:      teamArc.teamLinks,
 	}
 
 	if err := h.importTeamSection(ctx, leadAgent, syntheticArc, progressFn); err != nil {

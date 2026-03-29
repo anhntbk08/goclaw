@@ -1,7 +1,6 @@
 import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AgentExportPanel } from "./agent-export-panel";
@@ -40,11 +39,14 @@ export function ImportExportPage() {
 
   return (
     <div className="p-4 sm:p-6 pb-10 space-y-6">
-      <PageHeader
-        title={t("title")}
-        description={t("description")}
-        actions={<Badge variant="warning">{t("beta")}</Badge>}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("title")} <Badge variant="warning" className="ml-1 align-middle text-xs">{t("beta")}</Badge>
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
+        </div>
+      </div>
 
       {/* Beta warning */}
       <div className="mx-auto max-w-3xl flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">

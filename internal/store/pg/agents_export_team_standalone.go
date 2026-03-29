@@ -35,7 +35,7 @@ func GetTeamMemberAgents(ctx context.Context, db *sql.DB, teamID uuid.UUID) ([]s
 	ID       uuid.UUID
 	AgentKey string
 }, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 2, "m")
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func GetTeamMemberAgents(ctx context.Context, db *sql.DB, teamID uuid.UUID) ([]s
 
 // ExportTeamLinksForTeam returns agent_links where both source and target are members of the team.
 func ExportTeamLinksForTeam(ctx context.Context, db *sql.DB, teamID uuid.UUID) ([]AgentLinkExport, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 2, "l")
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func ExportTeamPreviewCountsByID(ctx context.Context, db *sql.DB, teamID uuid.UU
 
 // ExportTeamMembersNonLead returns all non-lead members by team_id (no lead exclusion needed when doing standalone team export).
 func ExportTeamMembersNonLead(ctx context.Context, db *sql.DB, teamID uuid.UUID, leadAgentID uuid.UUID) ([]TeamMemberExport, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 3)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 3, "m")
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func ExportTeamAgentBasicInfo(ctx context.Context, db *sql.DB, agentID uuid.UUID
 
 // ExportTeamMembersAll returns ALL members of a team (including lead) with agent_key resolution.
 func ExportTeamMembersAll(ctx context.Context, db *sql.DB, teamID uuid.UUID) ([]TeamMemberExport, error) {
-	tc, tcArgs, _, err := scopeClause(ctx, 2)
+	tc, tcArgs, _, err := scopeClauseAlias(ctx, 2, "m")
 	if err != nil {
 		return nil, err
 	}

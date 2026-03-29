@@ -20,7 +20,7 @@ export function TeamExportPanel({ teams, loading, loadTeams }: TeamExportPanelPr
 
   useEffect(() => { loadTeams(); }, [loadTeams]);
 
-  const { data: preview } = useTeamExportPreview(teamId || null);
+  const { data: preview, isLoading: previewLoading, error: previewError } = useTeamExportPreview(teamId || null);
   const exp = useTeamExport();
 
   const teamOptions = useMemo(
@@ -71,6 +71,14 @@ export function TeamExportPanel({ teams, loading, loadTeams }: TeamExportPanelPr
         />
       </div>
 
+      {teamId && previewLoading && (
+        <p className="text-sm text-muted-foreground">Loading preview...</p>
+      )}
+
+      {teamId && previewError && (
+        <p className="text-sm text-destructive">Failed to load preview</p>
+      )}
+
       {teamId && preview && (
         <>
           <div className="rounded-md border bg-muted/50 p-3 text-sm space-y-1">
@@ -91,6 +99,15 @@ export function TeamExportPanel({ teams, loading, loadTeams }: TeamExportPanelPr
             </Button>
           </div>
         </>
+      )}
+
+      {teamId && !previewLoading && !previewError && !preview && (
+        <div className="flex items-center justify-end pt-2">
+          <Button onClick={() => exp.startExport(teamId)} disabled={!teamId}>
+            <Package className="mr-1.5 h-4 w-4" />
+            {t("export.startExport")}
+          </Button>
+        </div>
       )}
     </div>
   );

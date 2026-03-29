@@ -35,13 +35,8 @@ type TeamExportManifest struct {
 
 // handleTeamExportPreview returns team export counts without building the archive.
 func (h *AgentsHandler) handleTeamExportPreview(w http.ResponseWriter, r *http.Request) {
-	userID := store.UserIDFromContext(r.Context())
 	locale := store.LocaleFromContext(r.Context())
-
-	if !h.canImport(userID) {
-		writeError(w, http.StatusForbidden, protocol.ErrUnauthorized, i18n.T(locale, i18n.MsgNoAccess, "team export"))
-		return
-	}
+	// Auth already enforced by adminMiddleware on the route.
 
 	teamIDStr := r.PathValue("id")
 	teamID, err := uuid.Parse(teamIDStr)
@@ -77,11 +72,7 @@ func (h *AgentsHandler) handleTeamExportPreview(w http.ResponseWriter, r *http.R
 func (h *AgentsHandler) handleTeamExport(w http.ResponseWriter, r *http.Request) {
 	userID := store.UserIDFromContext(r.Context())
 	locale := store.LocaleFromContext(r.Context())
-
-	if !h.canImport(userID) {
-		writeError(w, http.StatusForbidden, protocol.ErrUnauthorized, i18n.T(locale, i18n.MsgNoAccess, "team export"))
-		return
-	}
+	// Auth already enforced by adminMiddleware on the route.
 
 	teamIDStr := r.PathValue("id")
 	teamID, err := uuid.Parse(teamIDStr)
@@ -281,8 +272,13 @@ func (h *AgentsHandler) writeTeamExportArchive(ctx context.Context, w io.Writer,
 	}
 
 	sections := map[string]bool{
-		"context_files": true,
-		"workspace":     true,
+		"context_files":  true,
+		"memory":         true,
+		"knowledge_graph": true,
+		"cron":           true,
+		"user_profiles":  true,
+		"user_overrides": true,
+		"workspace":      true,
 	}
 
 	for _, member := range agentMembers {
@@ -300,7 +296,7 @@ func (h *AgentsHandler) writeTeamExportArchive(ctx context.Context, w io.Writer,
 			continue
 		}
 
-		// Write agent sections (context_files, workspace) into archive under prefix
+		// Write all agent sections into archive under prefix
 		agData, _ := h.agents.GetByID(ctx, member.ID)
 		if agData != nil {
 			if err := h.writeAgentSectionsToTar(ctx, tw, agData, prefix, sections, progressFn); err != nil {
@@ -338,6 +334,7 @@ func (h *AgentsHandler) writeTeamExportArchive(ctx context.Context, w io.Writer,
 // writeAgentSectionsToTar writes agent data sections into an existing tar.Writer with the given prefix.
 // This allows team export to embed per-agent data under agents/{key}/ without creating nested archives.
 func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Writer, ag *store.AgentData, prefix string, sections map[string]bool, progressFn func(ProgressEvent)) error {
+	// context_files (agent-level + per-user)
 	if sections["context_files"] {
 		files, err := pg.ExportAgentContextFiles(ctx, h.db, ag.ID)
 		if err != nil {
@@ -349,8 +346,120 @@ func (h *AgentsHandler) writeAgentSectionsToTar(ctx context.Context, tw *tar.Wri
 				return fmt.Errorf("write %s: %w", path, err)
 			}
 		}
+		userFiles, err := pg.ExportUserContextFiles(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.user_context_files", "agent_id", ag.ID, "error", err)
+		}
+		for _, f := range userFiles {
+			path := prefix + "user_context_files/" + sanitizeName(f.UserID) + "/" + sanitizeName(f.FileName)
+			if err := addToTar(tw, path, []byte(f.Content)); err != nil {
+				return fmt.Errorf("write %s: %w", path, err)
+			}
+		}
 	}
 
+	// memory (global + per-user)
+	if sections["memory"] {
+		docs, err := pg.ExportMemoryDocuments(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.memory", "agent_id", ag.ID, "error", err)
+		}
+		globalDocs := make([]MemoryExport, 0)
+		perUser := make(map[string][]MemoryExport)
+		for _, d := range docs {
+			me := MemoryExport{Path: d.Path, Content: d.Content, UserID: d.UserID}
+			if d.UserID == "" {
+				globalDocs = append(globalDocs, me)
+			} else {
+				perUser[d.UserID] = append(perUser[d.UserID], me)
+			}
+		}
+		if len(globalDocs) > 0 {
+			data, _ := marshalJSONL(globalDocs)
+			addToTar(tw, prefix+"memory/global.jsonl", data) //nolint:errcheck
+		}
+		for uid, udocs := range perUser {
+			data, _ := marshalJSONL(udocs)
+			addToTar(tw, prefix+"memory/users/"+sanitizeName(uid)+".jsonl", data) //nolint:errcheck
+		}
+	}
+
+	// knowledge_graph (entities + relations)
+	if sections["knowledge_graph"] {
+		entities, err := pg.ExportKGEntities(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.kg_entities", "agent_id", ag.ID, "error", err)
+		}
+		idToExternal := make(map[string]string, len(entities))
+		exportEntities := make([]KGEntityExport, 0, len(entities))
+		for _, e := range entities {
+			idToExternal[e.ID] = e.ExternalID
+			exportEntities = append(exportEntities, KGEntityExport{
+				ExternalID: e.ExternalID, UserID: e.UserID, Name: e.Name,
+				EntityType: e.EntityType, Description: e.Description,
+				Properties: e.Properties, Confidence: e.Confidence,
+			})
+		}
+		if len(exportEntities) > 0 {
+			data, _ := marshalJSONL(exportEntities)
+			addToTar(tw, prefix+"knowledge_graph/entities.jsonl", data) //nolint:errcheck
+		}
+		relations, err := pg.ExportKGRelations(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.kg_relations", "agent_id", ag.ID, "error", err)
+		}
+		exportRelations := make([]KGRelationExport, 0, len(relations))
+		for _, rel := range relations {
+			exportRelations = append(exportRelations, KGRelationExport{
+				SourceExternalID: idToExternal[rel.SourceEntityID],
+				TargetExternalID: idToExternal[rel.TargetEntityID],
+				UserID: rel.UserID, RelationType: rel.RelationType,
+				Confidence: rel.Confidence, Properties: rel.Properties,
+			})
+		}
+		if len(exportRelations) > 0 {
+			data, _ := marshalJSONL(exportRelations)
+			addToTar(tw, prefix+"knowledge_graph/relations.jsonl", data) //nolint:errcheck
+		}
+	}
+
+	// cron
+	if sections["cron"] {
+		jobs, err := pg.ExportCronJobs(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.cron", "agent_id", ag.ID, "error", err)
+		}
+		if len(jobs) > 0 {
+			data, _ := marshalJSONL(jobs)
+			addToTar(tw, prefix+"cron/jobs.jsonl", data) //nolint:errcheck
+		}
+	}
+
+	// user_profiles
+	if sections["user_profiles"] {
+		profiles, err := pg.ExportUserProfiles(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.user_profiles", "agent_id", ag.ID, "error", err)
+		}
+		if len(profiles) > 0 {
+			data, _ := marshalJSONL(profiles)
+			addToTar(tw, prefix+"user_profiles.jsonl", data) //nolint:errcheck
+		}
+	}
+
+	// user_overrides
+	if sections["user_overrides"] {
+		overrides, err := pg.ExportUserOverrides(ctx, h.db, ag.ID)
+		if err != nil {
+			slog.Warn("team.export.agent.user_overrides", "agent_id", ag.ID, "error", err)
+		}
+		if len(overrides) > 0 {
+			data, _ := marshalJSONL(overrides)
+			addToTar(tw, prefix+"user_overrides.jsonl", data) //nolint:errcheck
+		}
+	}
+
+	// workspace
 	if sections["workspace"] && ag.Workspace != "" {
 		wsPath := config.ExpandHome(ag.Workspace)
 		h.exportWorkspaceFilesWithPrefix(ctx, tw, wsPath, prefix+"workspace/", progressFn) //nolint:errcheck
