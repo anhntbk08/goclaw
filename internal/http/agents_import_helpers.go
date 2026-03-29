@@ -199,35 +199,15 @@ func nullStr(s *string) any {
 	return *s
 }
 
-// readNewSections parses Phase 2–4 archive entries into the importArchive.
+// readNewSections parses extended archive entries into the importArchive.
+// Skills/MCP/permissions sections from old archives are silently skipped (backward compat).
 func readNewSections(arc *importArchive, entries map[string][]byte) error {
-	if data, ok := entries["skills/grants.jsonl"]; ok {
-		items, err := parseJSONL[pg.SkillGrantExport](data)
-		if err != nil {
-			return fmt.Errorf("parse skills/grants.jsonl: %w", err)
-		}
-		arc.skillGrants = items
-	}
-	if data, ok := entries["mcp/grants.jsonl"]; ok {
-		items, err := parseJSONL[pg.MCPGrantExport](data)
-		if err != nil {
-			return fmt.Errorf("parse mcp/grants.jsonl: %w", err)
-		}
-		arc.mcpGrants = items
-	}
 	if data, ok := entries["cron/jobs.jsonl"]; ok {
 		items, err := parseJSONL[pg.CronJobExport](data)
 		if err != nil {
 			return fmt.Errorf("parse cron/jobs.jsonl: %w", err)
 		}
 		arc.cronJobs = items
-	}
-	if data, ok := entries["permissions/permissions.jsonl"]; ok {
-		items, err := parseJSONL[pg.ConfigPermissionExport](data)
-		if err != nil {
-			return fmt.Errorf("parse permissions/permissions.jsonl: %w", err)
-		}
-		arc.configPerms = items
 	}
 	if data, ok := entries["user_profiles.jsonl"]; ok {
 		items, err := parseJSONL[pg.UserProfileExport](data)

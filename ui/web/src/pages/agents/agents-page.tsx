@@ -97,7 +97,7 @@ export function AgentsPage() {
         description={t("description")}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate("/agents/transfer")} className="gap-1">
+            <Button variant="outline" onClick={() => navigate("/import-export?tab=agents")} className="gap-1">
               <ArrowLeftRight className="h-4 w-4" /> {t("transfer.title")}
             </Button>
             <Button onClick={() => setCreateOpen(true)} className="gap-1">

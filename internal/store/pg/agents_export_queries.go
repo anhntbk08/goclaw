@@ -85,16 +85,13 @@ type ExportPreview struct {
 	MemoryPerUser    int `json:"memory_per_user"`
 	KGEntities       int `json:"kg_entities"`
 	KGRelations      int `json:"kg_relations"`
-	SkillGrants      int `json:"skill_grants"`
-	MCPGrants        int `json:"mcp_grants"`
 	CronJobs         int `json:"cron_jobs"`
-	ConfigPerms      int `json:"config_permissions"`
 	UserProfiles     int `json:"user_profiles"`
 	UserOverrides    int `json:"user_overrides"`
 	// Team section
-	TeamTasks    int `json:"team_tasks"`
-	TeamMembers  int `json:"team_members"`
-	AgentLinks   int `json:"agent_links"`
+	TeamTasks   int `json:"team_tasks"`
+	TeamMembers int `json:"team_members"`
+	AgentLinks  int `json:"agent_links"`
 }
 
 const exportBatchSize = 1000
@@ -309,18 +306,14 @@ func ExportPreviewCounts(ctx context.Context, db *sql.DB, agentID uuid.UUID) (*E
 			(SELECT COUNT(*) FROM memory_documents       WHERE agent_id = $1 AND user_id IS NOT NULL`+tc+`) AS memory_per_user,
 			(SELECT COUNT(*) FROM kg_entities            WHERE agent_id = $1`+tc+`) AS kg_entities,
 			(SELECT COUNT(*) FROM kg_relations           WHERE agent_id = $1`+tc+`) AS kg_relations,
-			(SELECT COUNT(*) FROM skill_agent_grants     WHERE agent_id = $1`+tc+`) AS skill_grants,
-			(SELECT COUNT(*) FROM mcp_agent_grants       WHERE agent_id = $1`+tc+`) AS mcp_grants,
 			(SELECT COUNT(*) FROM cron_jobs              WHERE agent_id = $1`+tc+`) AS cron_jobs,
-			(SELECT COUNT(*) FROM agent_config_permissions WHERE agent_id = $1`+tc+`) AS config_permissions,
 			(SELECT COUNT(*) FROM user_agent_profiles    WHERE agent_id = $1`+tc+`) AS user_profiles,
 			(SELECT COUNT(*) FROM user_agent_overrides   WHERE agent_id = $1`+tc+`) AS user_overrides
 	`, args...).Scan(
 		&p.ContextFiles, &p.UserContextFiles,
 		&p.MemoryGlobal, &p.MemoryPerUser,
 		&p.KGEntities, &p.KGRelations,
-		&p.SkillGrants, &p.MCPGrants,
-		&p.CronJobs, &p.ConfigPerms,
+		&p.CronJobs,
 		&p.UserProfiles, &p.UserOverrides,
 	)
 	if err != nil {

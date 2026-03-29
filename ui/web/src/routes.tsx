@@ -24,8 +24,8 @@ const AgentsPage = lazyWithRetry(() =>
 const AgentCodexPoolPage = lazyWithRetry(() =>
   import("@/pages/agents/agent-detail/agent-codex-pool-page").then((m) => ({ default: m.AgentCodexPoolPage })),
 );
-const TransferPage = lazyWithRetry(() =>
-  import("@/pages/agents/transfer/transfer-page").then((m) => ({ default: m.TransferPage })),
+const ImportExportPage = lazyWithRetry(() =>
+  import("@/pages/import-export/import-export-page").then((m) => ({ default: m.ImportExportPage })),
 );
 const SessionsPage = lazyWithRetry(() =>
   import("@/pages/sessions/sessions-page").then((m) => ({ default: m.SessionsPage })),
@@ -154,7 +154,7 @@ export function AppRoutes() {
           <Route path={ROUTES.OVERVIEW} element={<OverviewPage />} />
           <Route path={ROUTES.CHAT_PATTERN} element={<ChatPage />} />
           <Route path={ROUTES.AGENTS} element={<AgentsPage key="list" />} />
-          <Route path={ROUTES.AGENT_TRANSFER} element={<RequireAdmin><TransferPage /></RequireAdmin>} />
+          <Route path={ROUTES.IMPORT_EXPORT} element={<RequireAdmin><ImportExportPage /></RequireAdmin>} />
           <Route path={ROUTES.AGENT_CODEX_POOL} element={<RequireAdmin><AgentCodexPoolPage /></RequireAdmin>} />
           <Route path={ROUTES.AGENT_DETAIL} element={<AgentsPage key="detail" />} />
           <Route path={ROUTES.TEAMS} element={<TeamsPage key="list" />} />

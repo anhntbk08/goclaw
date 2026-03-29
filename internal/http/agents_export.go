@@ -459,56 +459,6 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		}
 	}
 
-	// Section: skills
-	if sections["skills"] {
-		grants, qErr := pg.ExportSkillGrants(ctx, h.db, ag.ID)
-		if qErr != nil {
-			slog.Warn("export: failed to query skill grants", "agent", ag.AgentKey, "error", qErr)
-		}
-		if len(grants) > 0 {
-			data, err := marshalJSONL(grants)
-			if err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("marshal skill grants: %w", err)
-			}
-			if err := addToTar(tw, "skills/grants.jsonl", data); err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("write skills/grants.jsonl: %w", err)
-			}
-		}
-		manifest.Sections["skills"] = map[string]int{"count": len(grants)}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "skills", Status: "done", Detail: fmt.Sprintf("%d grants", len(grants))})
-		}
-	}
-
-	// Section: mcp
-	if sections["mcp"] {
-		grants, qErr := pg.ExportMCPGrants(ctx, h.db, ag.ID)
-		if qErr != nil {
-			slog.Warn("export: failed to query MCP grants", "agent", ag.AgentKey, "error", qErr)
-		}
-		if len(grants) > 0 {
-			data, err := marshalJSONL(grants)
-			if err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("marshal mcp grants: %w", err)
-			}
-			if err := addToTar(tw, "mcp/grants.jsonl", data); err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("write mcp/grants.jsonl: %w", err)
-			}
-		}
-		manifest.Sections["mcp"] = map[string]int{"count": len(grants)}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "mcp", Status: "done", Detail: fmt.Sprintf("%d grants", len(grants))})
-		}
-	}
-
 	// Section: cron
 	if sections["cron"] {
 		jobs, qErr := pg.ExportCronJobs(ctx, h.db, ag.ID)
@@ -531,31 +481,6 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		manifest.Sections["cron"] = map[string]int{"count": len(jobs)}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "cron", Status: "done", Detail: fmt.Sprintf("%d jobs", len(jobs))})
-		}
-	}
-
-	// Section: permissions
-	if sections["permissions"] {
-		perms, qErr := pg.ExportConfigPermissions(ctx, h.db, ag.ID)
-		if qErr != nil {
-			slog.Warn("export: failed to query config permissions", "agent", ag.AgentKey, "error", qErr)
-		}
-		if len(perms) > 0 {
-			data, err := marshalJSONL(perms)
-			if err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("marshal config permissions: %w", err)
-			}
-			if err := addToTar(tw, "permissions/permissions.jsonl", data); err != nil {
-				tw.Close()
-				gw.Close()
-				return fmt.Errorf("write permissions/permissions.jsonl: %w", err)
-			}
-		}
-		manifest.Sections["permissions"] = map[string]int{"count": len(perms)}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "permissions", Status: "done", Detail: fmt.Sprintf("%d permissions", len(perms))})
 		}
 	}
 
@@ -617,13 +542,6 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 			slog.Warn("export: workspace walk failed", "path", wsPath, "error", wsErr)
 		}
 		manifest.Sections["workspace"] = map[string]any{"file_count": fileCount, "total_bytes": totalBytes}
-	}
-
-	// Section: team (agent is team lead)
-	if sections["team"] {
-		if err := h.exportTeamSection(ctx, tw, ag.ID, manifest, progressFn); err != nil {
-			slog.Warn("export: team section failed", "agent", ag.AgentKey, "error", err)
-		}
 	}
 
 	// Manifest last — has accurate final counts

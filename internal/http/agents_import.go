@@ -43,21 +43,18 @@ type importArchive struct {
 	memoryUsers      map[string][]MemoryExport // userID → docs
 	kgEntities       []KGEntityExport
 	kgRelations      []KGRelationExport
-	skillGrants      []pg.SkillGrantExport
-	mcpGrants        []pg.MCPGrantExport
 	cronJobs         []pg.CronJobExport
-	configPerms      []pg.ConfigPermissionExport
 	userProfiles     []pg.UserProfileExport
 	userOverrides    []pg.UserOverrideExport
 	workspaceFiles   map[string][]byte // relative path → content
-	// Team section (Phase 4)
-	teamMeta         *pg.TeamExport
-	teamMembers      []pg.TeamMemberExport
-	teamTasks        []pg.TeamTaskExport
-	teamComments     []pg.TeamTaskCommentExport
-	teamEvents       []pg.TeamTaskEventExport
-	teamLinks        []pg.AgentLinkExport
-	teamWorkspace    map[string][]byte // relative path → content
+	// Team section (used by standalone team import)
+	teamMeta      *pg.TeamExport
+	teamMembers   []pg.TeamMemberExport
+	teamTasks     []pg.TeamTaskExport
+	teamComments  []pg.TeamTaskCommentExport
+	teamEvents    []pg.TeamTaskEventExport
+	teamLinks     []pg.AgentLinkExport
+	teamWorkspace map[string][]byte // relative path → content
 }
 
 type importContextFile struct {
@@ -89,10 +86,7 @@ func parseImportSections(raw string) map[string]bool {
 		"context_files":   true,
 		"memory":          true,
 		"knowledge_graph": true,
-		"skills":          true,
-		"mcp":             true,
 		"cron":            true,
-		"permissions":     true,
 		"user_profiles":   true,
 		"user_overrides":  true,
 		"workspace":       true,
@@ -315,10 +309,7 @@ func (h *AgentsHandler) doImportNewAgent(ctx context.Context, r *http.Request, a
 		"context_files":   true,
 		"memory":          true,
 		"knowledge_graph": true,
-		"skills":          true,
-		"mcp":             true,
 		"cron":            true,
-		"permissions":     true,
 		"user_profiles":   true,
 		"user_overrides":  true,
 		"workspace":       true,
@@ -405,60 +396,6 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		}
 	}
 
-	// Section: skills
-	if sections["skills"] && len(arc.skillGrants) > 0 {
-		tid := importTenantID(ctx)
-		var skipped int
-		for _, g := range arc.skillGrants {
-			res, err := h.db.ExecContext(ctx,
-				`INSERT INTO skill_agent_grants (agent_id, skill_id, pinned_version, granted_by, tenant_id)
-				 SELECT $1, id, $3, $4, $5 FROM skills WHERE id = $2
-				 ON CONFLICT (skill_id, agent_id) DO UPDATE SET pinned_version = EXCLUDED.pinned_version`,
-				ag.ID, g.SkillID, g.PinnedVersion, g.GrantedBy, tid,
-			)
-			if err != nil {
-				slog.Warn("agents.import.skill_grant", "agent_id", ag.ID, "skill_id", g.SkillID, "error", err)
-			} else if n, _ := res.RowsAffected(); n == 0 {
-				skipped++
-			}
-		}
-		if skipped > 0 {
-			slog.Info("agents.import.skills_skipped", "agent_id", ag.ID, "skipped", skipped, "reason", "skill not found on target system")
-		}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "skills", Status: "done", Current: len(arc.skillGrants), Total: len(arc.skillGrants)})
-		}
-	}
-
-	// Section: mcp
-	if sections["mcp"] && len(arc.mcpGrants) > 0 {
-		tid := importTenantID(ctx)
-		var skipped int
-		for _, g := range arc.mcpGrants {
-			res, err := h.db.ExecContext(ctx,
-				`INSERT INTO mcp_agent_grants (agent_id, server_id, enabled, tool_allow, tool_deny, config_overrides, granted_by, tenant_id)
-				 SELECT $1, id, $3, $4, $5, $6, $7, $8 FROM mcp_servers WHERE id = $2
-				 ON CONFLICT (server_id, agent_id) DO UPDATE SET
-				   enabled = EXCLUDED.enabled,
-				   tool_allow = EXCLUDED.tool_allow,
-				   tool_deny = EXCLUDED.tool_deny,
-				   config_overrides = EXCLUDED.config_overrides`,
-				ag.ID, g.ServerID, g.Enabled, nullJSON(g.ToolAllow), nullJSON(g.ToolDeny), nullJSON(g.ConfigOverrides), g.GrantedBy, tid,
-			)
-			if err != nil {
-				slog.Warn("agents.import.mcp_grant", "agent_id", ag.ID, "server_id", g.ServerID, "error", err)
-			} else if n, _ := res.RowsAffected(); n == 0 {
-				skipped++
-			}
-		}
-		if skipped > 0 {
-			slog.Info("agents.import.mcp_skipped", "agent_id", ag.ID, "skipped", skipped, "reason", "MCP server not found on target system")
-		}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "mcp", Status: "done", Current: len(arc.mcpGrants), Total: len(arc.mcpGrants)})
-		}
-	}
-
 	// Section: cron — always imported as disabled, skip duplicates by name
 	if sections["cron"] && len(arc.cronJobs) > 0 {
 		tid := importTenantID(ctx)
@@ -489,38 +426,16 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		}
 	}
 
-	// Section: permissions
-	if sections["permissions"] && len(arc.configPerms) > 0 {
-		tid := importTenantID(ctx)
-		for _, p := range arc.configPerms {
-			_, err := h.db.ExecContext(ctx,
-				`INSERT INTO agent_config_permissions
-				   (agent_id, scope, config_type, user_id, permission, metadata, granted_by, tenant_id)
-				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				 ON CONFLICT (agent_id, scope, config_type, user_id) DO UPDATE SET
-				   permission = EXCLUDED.permission,
-				   metadata = EXCLUDED.metadata`,
-				ag.ID, p.Scope, p.ConfigType, p.UserID, p.Permission,
-				nullJSON(p.Metadata), p.GrantedBy, tid,
-			)
-			if err != nil {
-				slog.Warn("agents.import.config_perm", "agent_id", ag.ID, "scope", p.Scope, "error", err)
-			}
-		}
-		if progressFn != nil {
-			progressFn(ProgressEvent{Phase: "permissions", Status: "done", Current: len(arc.configPerms), Total: len(arc.configPerms)})
-		}
-	}
-
-	// Section: user_profiles — insert if not exists
+	// Section: user_profiles — insert if not exists, workspace=NULL for portability
+	// (workspace is auto-created via GetOrCreateUserProfile on first user access)
 	if sections["user_profiles"] && len(arc.userProfiles) > 0 {
 		tid := importTenantID(ctx)
 		for _, p := range arc.userProfiles {
 			_, err := h.db.ExecContext(ctx,
 				`INSERT INTO user_agent_profiles (agent_id, user_id, workspace, tenant_id)
-				 VALUES ($1, $2, $3, $4)
+				 VALUES ($1, $2, NULL, $3)
 				 ON CONFLICT DO NOTHING`,
-				ag.ID, p.UserID, p.Workspace, tid,
+				ag.ID, p.UserID, tid,
 			)
 			if err != nil {
 				slog.Warn("agents.import.user_profile", "agent_id", ag.ID, "user_id", p.UserID, "error", err)
