@@ -306,6 +306,13 @@ func (h *AgentsHandler) doImportNewAgent(ctx context.Context, r *http.Request, a
 		"context_files":   true,
 		"memory":          true,
 		"knowledge_graph": true,
+		"skills":          true,
+		"mcp":             true,
+		"cron":            true,
+		"permissions":     true,
+		"user_profiles":   true,
+		"user_overrides":  true,
+		"workspace":       true,
 	}
 	summary, err := h.doMergeImport(ctx, ag, arc, sections, progressFn)
 	if err != nil {

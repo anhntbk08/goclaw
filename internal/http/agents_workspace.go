@@ -62,7 +62,7 @@ func (h *AgentsHandler) exportWorkspaceFiles(ctx context.Context, tw *tar.Writer
 			return nil
 		}
 
-		tarPath := "workspace/" + filepath.ToSlash(rel)
+		tarPath := sanitizeName("workspace/" + filepath.ToSlash(rel))
 		if err := addToTar(tw, tarPath, data); err != nil {
 			return err
 		}

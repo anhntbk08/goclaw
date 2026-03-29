@@ -109,7 +109,10 @@ func (h *AgentsHandler) handleExportPreview(w http.ResponseWriter, r *http.Reque
 		wsPath := config.ExpandHome(ag.Workspace)
 		if info, statErr := os.Stat(wsPath); statErr == nil && info.IsDir() {
 			filepath.WalkDir(wsPath, func(_ string, d fs.DirEntry, _ error) error { //nolint:errcheck
-				if !d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
+				if d.IsDir() || strings.HasPrefix(d.Name(), ".") || d.Type()&fs.ModeSymlink != 0 {
+					return nil
+				}
+				if fi, err := d.Info(); err == nil && fi.Size() <= maxWorkspaceFileSize {
 					workspaceFiles++
 				}
 				return nil
