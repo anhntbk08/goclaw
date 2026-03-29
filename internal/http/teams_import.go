@@ -1,11 +1,8 @@
 package http
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -84,27 +81,9 @@ func (h *AgentsHandler) handleTeamImport(w http.ResponseWriter, r *http.Request)
 
 // readTeamImportArchive parses a team tar.gz, separating team/ entries from agents/{key}/ entries.
 func readTeamImportArchive(r io.Reader) (*teamImportArchive, error) {
-	gr, err := gzip.NewReader(r)
+	entries, err := readTarGzEntries(r)
 	if err != nil {
-		return nil, fmt.Errorf("gzip open: %w", err)
-	}
-	defer gr.Close()
-
-	tr := tar.NewReader(gr)
-	entries := make(map[string][]byte)
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("tar read: %w", err)
-		}
-		data, err := io.ReadAll(io.LimitReader(tr, maxImportBodySize))
-		if err != nil {
-			return nil, fmt.Errorf("read entry %s: %w", hdr.Name, err)
-		}
-		entries[hdr.Name] = data
+		return nil, err
 	}
 
 	arc := &teamImportArchive{

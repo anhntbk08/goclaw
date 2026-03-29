@@ -68,7 +68,7 @@ func (h *AgentsHandler) exportWorkspaceFilesWithPrefix(ctx context.Context, tw *
 			return nil
 		}
 
-		tarPath := sanitizeName(tarPrefix + filepath.ToSlash(rel))
+		tarPath := tarPrefix + sanitizeRelPath(filepath.ToSlash(rel))
 		if err := addToTar(tw, tarPath, data); err != nil {
 			return err
 		}

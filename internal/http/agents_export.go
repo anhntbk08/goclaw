@@ -38,9 +38,47 @@ type exportToken struct {
 }
 
 var (
-	exportTokenMu sync.Mutex
-	exportTokens  = map[string]*exportToken{}
+	exportTokenMu   sync.Mutex
+	exportTokens    = map[string]*exportToken{}
+	exportSweepOnce sync.Once
 )
+
+// storeExportToken creates a short-lived token referencing a temp export file.
+// Starts a background sweep goroutine on first call (once per process).
+func storeExportToken(entityID, userID, filePath, fileName string) string {
+	exportSweepOnce.Do(func() {
+		go sweepExportTokens()
+	})
+	token := uuid.Must(uuid.NewV7()).String()
+	entry := &exportToken{
+		agentID:   entityID,
+		userID:    userID,
+		filePath:  filePath,
+		fileName:  fileName,
+		expiresAt: time.Now().Add(5 * time.Minute),
+	}
+	exportTokenMu.Lock()
+	exportTokens[token] = entry
+	exportTokenMu.Unlock()
+	return token
+}
+
+// sweepExportTokens runs every 60s, removes expired tokens and their temp files.
+func sweepExportTokens() {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now()
+		exportTokenMu.Lock()
+		for tok, e := range exportTokens {
+			if now.After(e.expiresAt) {
+				os.Remove(e.filePath) //nolint:errcheck
+				delete(exportTokens, tok)
+			}
+		}
+		exportTokenMu.Unlock()
+	}
+}
 
 // ExportManifest describes the archive contents.
 type ExportManifest struct {
@@ -576,31 +614,9 @@ func (h *AgentsHandler) canExport(ag *store.AgentData, userID string) bool {
 	return false
 }
 
-// generateExportToken stores a temp file path under a short-lived token (5 min TTL).
-func (h *AgentsHandler) generateExportToken(agentID, userID, filePath, fileName string) string {
-	token := uuid.Must(uuid.NewV7()).String()
-	entry := &exportToken{
-		agentID:   agentID,
-		userID:    userID,
-		filePath:  filePath,
-		fileName:  fileName,
-		expiresAt: time.Now().Add(5 * time.Minute),
-	}
-	exportTokenMu.Lock()
-	exportTokens[token] = entry
-	exportTokenMu.Unlock()
-
-	go func() {
-		time.Sleep(5 * time.Minute)
-		exportTokenMu.Lock()
-		if e, ok := exportTokens[token]; ok {
-			delete(exportTokens, token)
-			os.Remove(e.filePath) //nolint:errcheck
-		}
-		exportTokenMu.Unlock()
-	}()
-
-	return token
+// generateExportToken is an alias for storeExportToken (backward compat within AgentsHandler).
+func (h *AgentsHandler) generateExportToken(entityID, userID, filePath, fileName string) string {
+	return storeExportToken(entityID, userID, filePath, fileName)
 }
 
 // addToTar adds a single file to the tar archive with a standard header.
@@ -703,9 +719,24 @@ func jsonIndent(v any) ([]byte, error) {
 }
 
 // sanitizeName replaces characters that could cause path traversal in tar entries.
+// Use for single-segment names (file names, agent keys). NOT for relative paths with slashes.
 func sanitizeName(name string) string {
 	r := strings.NewReplacer("/", "_", "..", "__", "\\", "_")
 	return r.Replace(name)
+}
+
+// sanitizeRelPath sanitizes each segment of a relative path while preserving directory structure.
+// Removes ".." traversal and backslashes but keeps forward slashes between segments.
+func sanitizeRelPath(relPath string) string {
+	parts := strings.Split(relPath, "/")
+	clean := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p == "" || p == "." || p == ".." {
+			continue
+		}
+		clean = append(clean, strings.ReplaceAll(p, "\\", "_"))
+	}
+	return strings.Join(clean, "/")
 }
 
 // limitedWriter wraps an io.Writer and returns an error once limit bytes are exceeded.

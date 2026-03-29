@@ -403,8 +403,8 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 			// Check if cron job with same name already exists (no UNIQUE constraint on name)
 			var exists bool
 			_ = h.db.QueryRowContext(ctx,
-				`SELECT EXISTS(SELECT 1 FROM cron_jobs WHERE agent_id = $1 AND name = $2)`,
-				ag.ID, j.Name,
+				`SELECT EXISTS(SELECT 1 FROM cron_jobs WHERE agent_id = $1 AND name = $2 AND tenant_id = $3)`,
+				ag.ID, j.Name, tid,
 			).Scan(&exists)
 			if exists {
 				continue

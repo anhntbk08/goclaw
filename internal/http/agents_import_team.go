@@ -21,8 +21,8 @@ func (h *AgentsHandler) importTeamSection(ctx context.Context, ag *store.AgentDa
 	// Check if agent is already a team lead — skip to prevent duplicate teams
 	var existingTeam bool
 	_ = h.db.QueryRowContext(ctx,
-		"SELECT EXISTS(SELECT 1 FROM agent_teams WHERE lead_agent_id = $1)",
-		ag.ID,
+		"SELECT EXISTS(SELECT 1 FROM agent_teams WHERE lead_agent_id = $1 AND tenant_id = $2)",
+		ag.ID, tid,
 	).Scan(&existingTeam)
 	if existingTeam {
 		slog.Info("import: agent already has a team, skipping team import", "agent_id", ag.ID)

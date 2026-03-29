@@ -17,8 +17,9 @@ import (
 	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
 )
 
-// readImportArchive extracts the archive into an importArchive struct.
-func readImportArchive(r io.Reader) (*importArchive, error) {
+// readTarGzEntries decompresses a tar.gz and returns all entries as a map.
+// Enforces per-entry limit (maxImportBodySize) and cumulative decompressed size limit.
+func readTarGzEntries(r io.Reader) (map[string][]byte, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("gzip open: %w", err)
@@ -27,6 +28,7 @@ func readImportArchive(r io.Reader) (*importArchive, error) {
 
 	tr := tar.NewReader(gr)
 	entries := make(map[string][]byte)
+	var totalBytes int64
 	for {
 		hdr, err := tr.Next()
 		if errors.Is(err, io.EOF) {
@@ -39,7 +41,20 @@ func readImportArchive(r io.Reader) (*importArchive, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read entry %s: %w", hdr.Name, err)
 		}
+		totalBytes += int64(len(data))
+		if totalBytes > maxImportBodySize {
+			return nil, fmt.Errorf("archive exceeds maximum decompressed size (%d bytes)", maxImportBodySize)
+		}
 		entries[hdr.Name] = data
+	}
+	return entries, nil
+}
+
+// readImportArchive extracts the archive into an importArchive struct.
+func readImportArchive(r io.Reader) (*importArchive, error) {
+	entries, err := readTarGzEntries(r)
+	if err != nil {
+		return nil, err
 	}
 
 	arc := &importArchive{

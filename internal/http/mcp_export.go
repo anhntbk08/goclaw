@@ -12,8 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/nextlevelbuilder/goclaw/internal/i18n"
 	"github.com/nextlevelbuilder/goclaw/internal/store"
 	"github.com/nextlevelbuilder/goclaw/internal/store/pg"
@@ -79,27 +77,7 @@ func (h *MCPHandler) handleMCPExport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		token := uuid.Must(uuid.NewV7()).String()
-		entry := &exportToken{
-			agentID:   "mcp",
-			userID:    userID,
-			filePath:  tmpPath,
-			fileName:  fileName,
-			expiresAt: time.Now().Add(5 * time.Minute),
-		}
-		exportTokenMu.Lock()
-		exportTokens[token] = entry
-		exportTokenMu.Unlock()
-		go func() {
-			time.Sleep(5 * time.Minute)
-			exportTokenMu.Lock()
-			if e, ok := exportTokens[token]; ok {
-				delete(exportTokens, token)
-				os.Remove(e.filePath) //nolint:errcheck
-			}
-			exportTokenMu.Unlock()
-		}()
-
+		token := storeExportToken("mcp", userID, tmpPath, fileName)
 		sendSSE(w, flusher, "complete", map[string]string{
 			"download_url": "/v1/export/download/" + token,
 		})

@@ -1,12 +1,8 @@
 package http
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -80,13 +76,10 @@ type SkillsImportSummary struct {
 
 // doSkillsImport parses the skills tar.gz and creates skills + writes files + applies grants.
 func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID string, progressFn func(ProgressEvent)) (*SkillsImportSummary, error) {
-	gr, err := gzip.NewReader(r)
+	entries, err := readTarGzEntries(r)
 	if err != nil {
-		return nil, fmt.Errorf("gzip open: %w", err)
+		return nil, err
 	}
-	defer gr.Close()
-
-	tr := tar.NewReader(gr)
 
 	// Group entries by skill slug: skills/{slug}/...
 	type skillEntry struct {
@@ -96,23 +89,11 @@ func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID 
 	}
 	bySlug := make(map[string]*skillEntry)
 
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("tar read: %w", err)
-		}
-		data, err := io.ReadAll(io.LimitReader(tr, maxImportBodySize))
-		if err != nil {
-			return nil, fmt.Errorf("read entry %s: %w", hdr.Name, err)
-		}
-
-		if !strings.HasPrefix(hdr.Name, "skills/") {
+	for name, data := range entries {
+		if !strings.HasPrefix(name, "skills/") {
 			continue
 		}
-		rest := strings.TrimPrefix(hdr.Name, "skills/")
+		rest := strings.TrimPrefix(name, "skills/")
 		slashIdx := strings.Index(rest, "/")
 		if slashIdx < 0 {
 			continue

@@ -1,10 +1,7 @@
 package http
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -75,27 +72,9 @@ type MCPImportSummary struct {
 
 // doMCPImport parses the MCP tar.gz and creates servers + grants.
 func (h *MCPHandler) doMCPImport(ctx context.Context, r io.Reader, userID string, progressFn func(ProgressEvent)) (*MCPImportSummary, error) {
-	gr, err := gzip.NewReader(r)
+	entries, err := readTarGzEntries(r)
 	if err != nil {
-		return nil, fmt.Errorf("gzip open: %w", err)
-	}
-	defer gr.Close()
-
-	tr := tar.NewReader(gr)
-	entries := make(map[string][]byte)
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("tar read: %w", err)
-		}
-		data, err := io.ReadAll(io.LimitReader(tr, maxImportBodySize))
-		if err != nil {
-			return nil, fmt.Errorf("read entry %s: %w", hdr.Name, err)
-		}
-		entries[hdr.Name] = data
+		return nil, err
 	}
 
 	summary := &MCPImportSummary{}

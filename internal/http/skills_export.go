@@ -80,28 +80,7 @@ func (h *SkillsHandler) handleSkillsExport(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		// Store token using the exportTokens map from agents_export.go
-		token := uuid.Must(uuid.NewV7()).String()
-		entry := &exportToken{
-			agentID:   "skills",
-			userID:    userID,
-			filePath:  tmpPath,
-			fileName:  fileName,
-			expiresAt: time.Now().Add(5 * time.Minute),
-		}
-		exportTokenMu.Lock()
-		exportTokens[token] = entry
-		exportTokenMu.Unlock()
-		go func() {
-			time.Sleep(5 * time.Minute)
-			exportTokenMu.Lock()
-			if e, ok := exportTokens[token]; ok {
-				delete(exportTokens, token)
-				os.Remove(e.filePath) //nolint:errcheck
-			}
-			exportTokenMu.Unlock()
-		}()
-
+		token := storeExportToken("skills", userID, tmpPath, fileName)
 		sendSSE(w, flusher, "complete", map[string]string{
 			"download_url": "/v1/export/download/" + token,
 		})
