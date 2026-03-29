@@ -103,7 +103,7 @@ func (h *SkillsHandler) handleSkillsExport(w http.ResponseWriter, r *http.Reques
 		}()
 
 		sendSSE(w, flusher, "complete", map[string]string{
-			"download_url": "/v1/skills/export/download/" + token,
+			"download_url": "/v1/export/download/" + token,
 		})
 		return
 	}

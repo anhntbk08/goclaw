@@ -179,11 +179,11 @@ func (h *AgentsHandler) importTeamSection(ctx context.Context, ag *store.AgentDa
 			continue
 		}
 		if _, err = h.db.ExecContext(ctx,
-			`INSERT INTO agent_links (id, source_agent_id, target_agent_id, link_type, scope, description, tenant_id)
+			`INSERT INTO agent_links (id, source_agent_id, target_agent_id, direction, description, created_by, tenant_id)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7)
 			 ON CONFLICT DO NOTHING`,
 			uuid.Must(uuid.NewV7()), srcID, tgtID,
-			l.LinkType, l.Scope, l.Description, tid,
+			l.Direction, l.Description, userID, tid,
 		); err != nil {
 			slog.Warn("import.team: insert link", "error", err)
 		}

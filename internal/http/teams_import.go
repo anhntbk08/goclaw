@@ -239,7 +239,10 @@ func (h *AgentsHandler) doTeamImport(ctx context.Context, r *http.Request, teamA
 	}
 
 	// Import order: use AgentKeys from manifest if present, else iterate agentArcs
-	agentKeys := teamArc.manifest.AgentKeys
+	var agentKeys []string
+	if teamArc.manifest != nil {
+		agentKeys = teamArc.manifest.AgentKeys
+	}
 	if len(agentKeys) == 0 {
 		for k := range teamArc.agentArcs {
 			agentKeys = append(agentKeys, k)

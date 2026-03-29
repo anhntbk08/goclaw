@@ -129,7 +129,7 @@ func (h *AgentsHandler) handleTeamExport(w http.ResponseWriter, r *http.Request)
 
 		token := h.generateExportToken(teamID.String(), userID, tmpPath, fileName)
 		sendSSE(w, flusher, "complete", map[string]string{
-			"download_url": "/v1/teams/" + teamIDStr + "/export/download/" + token,
+			"download_url": "/v1/export/download/" + token,
 		})
 		return
 	}

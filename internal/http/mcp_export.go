@@ -101,7 +101,7 @@ func (h *MCPHandler) handleMCPExport(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		sendSSE(w, flusher, "complete", map[string]string{
-			"download_url": "/v1/mcp/export/download/" + token,
+			"download_url": "/v1/export/download/" + token,
 		})
 		return
 	}

@@ -160,32 +160,33 @@ func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID 
 			progressFn(ProgressEvent{Phase: "skill", Status: "running", Detail: slug})
 		}
 
-		// Write SKILL.md to filesystem
 		skillDir := filepath.Join(skillsDir, sanitizeName(slug))
-		if err := os.MkdirAll(skillDir, 0755); err != nil {
-			slog.Warn("skills.import: mkdir skill dir", "slug", slug, "error", err)
-			continue
-		}
 		skillFilePath := filepath.Join(skillDir, "SKILL.md")
-		if entry.skillMD != nil {
-			if err := os.WriteFile(skillFilePath, entry.skillMD, 0644); err != nil {
-				slog.Warn("skills.import: write SKILL.md", "slug", slug, "error", err)
-			}
-		}
 
-		// Create skill in DB (skip if slug already exists)
+		// Check if slug already exists in this tenant before writing files
+		tid := tenantIDForSkillImport(ctx)
 		var existing bool
 		_ = h.db.QueryRowContext(ctx,
-			"SELECT EXISTS(SELECT 1 FROM skills WHERE slug = $1)", slug,
+			"SELECT EXISTS(SELECT 1 FROM skills WHERE slug = $1 AND tenant_id = $2)", slug, tid,
 		).Scan(&existing)
 
 		var skillID uuid.UUID
 		if existing {
-			// Read existing ID for grant application
 			_ = h.db.QueryRowContext(ctx,
-				"SELECT id FROM skills WHERE slug = $1", slug,
+				"SELECT id FROM skills WHERE slug = $1 AND tenant_id = $2", slug, tid,
 			).Scan(&skillID)
 		} else {
+			// Write SKILL.md to filesystem only for new skills
+			if err := os.MkdirAll(skillDir, 0755); err != nil {
+				slog.Warn("skills.import: mkdir skill dir", "slug", slug, "error", err)
+				continue
+			}
+			if entry.skillMD != nil {
+				if err := os.WriteFile(skillFilePath, entry.skillMD, 0644); err != nil {
+					slog.Warn("skills.import: write SKILL.md", "slug", slug, "error", err)
+				}
+			}
+
 			skillID = uuid.Must(uuid.NewV7())
 			visibility := meta.Visibility
 			if visibility == "" {
@@ -195,7 +196,6 @@ func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID 
 			if version <= 0 {
 				version = 1
 			}
-			tid := tenantIDForSkillImport(ctx)
 			_, err := h.db.ExecContext(ctx,
 				`INSERT INTO skills (id, name, slug, description, owner_id, visibility, version, status,
 				 is_system, file_path, file_size, tenant_id, created_at, updated_at)
@@ -219,7 +219,7 @@ func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID 
 			for _, g := range grants {
 				var agentID uuid.UUID
 				if err := h.db.QueryRowContext(ctx,
-					"SELECT id FROM agents WHERE agent_key = $1", g.AgentKey,
+					"SELECT id FROM agents WHERE agent_key = $1 AND tenant_id = $2", g.AgentKey, tid,
 				).Scan(&agentID); err != nil {
 					slog.Warn("skills.import: agent not found for grant", "key", g.AgentKey)
 					continue

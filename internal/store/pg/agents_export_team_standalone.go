@@ -76,8 +76,7 @@ func ExportTeamLinksForTeam(ctx context.Context, db *sql.DB, teamID uuid.UUID) (
 		return nil, err
 	}
 	rows, err := db.QueryContext(ctx,
-		"SELECT sa.agent_key, ta.agent_key, l.link_type,"+
-			" COALESCE(l.scope,''), COALESCE(l.description,'')"+
+		"SELECT sa.agent_key, ta.agent_key, l.direction, COALESCE(l.description,'')"+
 			" FROM agent_links l"+
 			" JOIN agents sa ON sa.id = l.source_agent_id"+
 			" JOIN agents ta ON ta.id = l.target_agent_id"+
@@ -93,7 +92,7 @@ func ExportTeamLinksForTeam(ctx context.Context, db *sql.DB, teamID uuid.UUID) (
 	var out []AgentLinkExport
 	for rows.Next() {
 		var l AgentLinkExport
-		if err := rows.Scan(&l.SourceAgentKey, &l.TargetAgentKey, &l.LinkType, &l.Scope, &l.Description); err != nil {
+		if err := rows.Scan(&l.SourceAgentKey, &l.TargetAgentKey, &l.Direction, &l.Description); err != nil {
 			slog.Warn("export.team.links.scan", "error", err)
 			continue
 		}

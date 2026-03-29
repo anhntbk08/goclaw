@@ -69,8 +69,7 @@ type TeamTaskEventExport struct {
 type AgentLinkExport struct {
 	SourceAgentKey string `json:"source_agent_key"`
 	TargetAgentKey string `json:"target_agent_key"`
-	LinkType       string `json:"link_type"`
-	Scope          string `json:"scope,omitempty"`
+	Direction      string `json:"direction"`
 	Description    string `json:"description,omitempty"`
 }
 
@@ -385,8 +384,7 @@ func ExportAgentLinks(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]Age
 		return nil, err
 	}
 	rows, err := db.QueryContext(ctx,
-		"SELECT sa.agent_key, ta.agent_key, l.link_type,"+
-			" COALESCE(l.scope,''), COALESCE(l.description,'')"+
+		"SELECT sa.agent_key, ta.agent_key, l.direction, COALESCE(l.description,'')"+
 			" FROM agent_links l"+
 			" JOIN agents sa ON sa.id = l.source_agent_id"+
 			" JOIN agents ta ON ta.id = l.target_agent_id"+
@@ -401,7 +399,7 @@ func ExportAgentLinks(ctx context.Context, db *sql.DB, agentID uuid.UUID) ([]Age
 	var out []AgentLinkExport
 	for rows.Next() {
 		var l AgentLinkExport
-		if err := rows.Scan(&l.SourceAgentKey, &l.TargetAgentKey, &l.LinkType, &l.Scope, &l.Description); err != nil {
+		if err := rows.Scan(&l.SourceAgentKey, &l.TargetAgentKey, &l.Direction, &l.Description); err != nil {
 			slog.Warn("export.agent_link.scan", "error", err)
 			continue
 		}
