@@ -74,6 +74,7 @@ func (h *SkillsHandler) handleSkillsImport(w http.ResponseWriter, r *http.Reques
 // SkillsImportSummary is returned after a successful skills import.
 type SkillsImportSummary struct {
 	SkillsImported int `json:"skills_imported"`
+	SkillsSkipped  int `json:"skills_skipped"`
 	GrantsApplied  int `json:"grants_applied"`
 }
 
@@ -175,6 +176,7 @@ func (h *SkillsHandler) doSkillsImport(ctx context.Context, r io.Reader, userID 
 			_ = h.db.QueryRowContext(ctx,
 				"SELECT id FROM skills WHERE slug = $1 AND tenant_id = $2", slug, tid,
 			).Scan(&skillID)
+			summary.SkillsSkipped++
 		} else {
 			// Write SKILL.md to filesystem only for new skills
 			if err := os.MkdirAll(skillDir, 0755); err != nil {

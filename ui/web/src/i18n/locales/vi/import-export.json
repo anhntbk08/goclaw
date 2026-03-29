@@ -121,6 +121,10 @@
     "exportMcp": "Xuất MCP Servers",
     "importSkills": "Nhập kỹ năng",
     "importMcp": "Nhập MCP Servers",
+    "importedSkills": "Kỹ năng đã nhập",
+    "skippedSkills": "Kỹ năng bỏ qua (đã tồn tại)",
+    "importedServers": "Server đã nhập",
+    "skippedServers": "Server bỏ qua (đã tồn tại)",
     "dropSkills": "Kéo thả file kỹ năng hoặc nhấp để chọn",
     "dropMcp": "Kéo thả file MCP hoặc nhấp để chọn"
   }

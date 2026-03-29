@@ -121,6 +121,10 @@
     "exportMcp": "导出 MCP 服务器",
     "importSkills": "导入技能",
     "importMcp": "导入 MCP 服务器",
+    "importedSkills": "已导入技能",
+    "skippedSkills": "跳过的技能（已存在）",
+    "importedServers": "已导入服务器",
+    "skippedServers": "跳过的服务器（已存在）",
     "dropSkills": "拖放技能归档文件或点击浏览",
     "dropMcp": "拖放 MCP 归档文件或点击浏览"
   }

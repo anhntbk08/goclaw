@@ -10,13 +10,14 @@ interface SseProgressEvent {
   total?: number;
 }
 
-interface SseCompleteEvent {
+export interface SseCompleteEvent {
   download_url?: string;
   file_size?: number;
   file_name?: string;
   agent_id?: string;
   agent_key?: string;
   summary?: Record<string, number>;
+  [key: string]: unknown;
 }
 
 interface SseErrorEvent {

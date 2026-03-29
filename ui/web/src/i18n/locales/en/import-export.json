@@ -121,6 +121,10 @@
     "exportMcp": "Export MCP Servers",
     "importSkills": "Import Skills",
     "importMcp": "Import MCP Servers",
+    "importedSkills": "Skills imported",
+    "skippedSkills": "Skills skipped (already exist)",
+    "importedServers": "Servers imported",
+    "skippedServers": "Servers skipped (already exist)",
     "dropSkills": "Drop skills archive file here or click to browse",
     "dropMcp": "Drop MCP archive file here or click to browse"
   }

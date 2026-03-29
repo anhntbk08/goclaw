@@ -163,8 +163,8 @@ func ExportMCPPreview(ctx context.Context, db *sql.DB) (*MCPExportPreview, error
 }
 
 // ImportMCPServer inserts an MCP server from export data if no server with that name exists.
-// Returns the server UUID (newly created or existing).
-func ImportMCPServer(ctx context.Context, db *sql.DB, srv MCPServerExport, createdBy string) (uuid.UUID, error) {
+// Returns the server UUID and whether it was newly created (false = already existed).
+func ImportMCPServer(ctx context.Context, db *sql.DB, srv MCPServerExport, createdBy string) (uuid.UUID, bool, error) {
 	tid := tenantIDForInsert(ctx)
 
 	// Check if server with same name already exists
@@ -174,10 +174,10 @@ func ImportMCPServer(ctx context.Context, db *sql.DB, srv MCPServerExport, creat
 		srv.Name, tid,
 	).Scan(&existing)
 	if err == nil {
-		return existing, nil // already exists — return existing ID
+		return existing, false, nil // already exists — return existing ID
 	}
 	if err != sql.ErrNoRows {
-		return uuid.Nil, err
+		return uuid.Nil, false, err
 	}
 
 	id := uuid.Must(uuid.NewV7())
@@ -193,9 +193,9 @@ func ImportMCPServer(ctx context.Context, db *sql.DB, srv MCPServerExport, creat
 		createdBy, tid,
 	)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, false, err
 	}
-	return id, nil
+	return id, true, nil
 }
 
 // ImportMCPGrant upserts an MCP agent grant for an imported server.

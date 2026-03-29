@@ -1,10 +1,17 @@
 import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Upload, FileArchive, Info } from "lucide-react";
+import { Upload, FileArchive, Info, CheckCircle2, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OperationProgress, type ProgressStep } from "@/components/shared/operation-progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type { SseCompleteEvent } from "@/hooks/use-sse-progress";
 import { useSkillsImport, useMcpImport } from "./hooks/use-capabilities-import";
+
+interface ImportSummaryEntry {
+  label: string;
+  value: number;
+  type?: "created" | "skipped";
+}
 
 interface DropZoneImportTabProps {
   dropLabel: string;
@@ -19,6 +26,8 @@ interface DropZoneImportTabProps {
   steps: ProgressStep[];
   elapsed: number;
   error: { detail: string } | null;
+  result: SseCompleteEvent | null;
+  summaryEntries?: (result: SseCompleteEvent) => ImportSummaryEntry[];
   reset: () => void;
   cancel: () => void;
 }
@@ -36,6 +45,8 @@ function DropZoneImportTab({
   steps,
   elapsed,
   error,
+  result,
+  summaryEntries,
   reset,
   cancel,
 }: DropZoneImportTabProps) {
@@ -57,12 +68,32 @@ function DropZoneImportTab({
   );
 
   if (status !== "idle") {
+    const entries = status === "complete" && result && summaryEntries ? summaryEntries(result) : [];
     return (
       <div className="space-y-4">
         <h3 className="text-sm font-medium">
           {status === "complete" ? doneLabel : status === "error" ? errorLabel : importingLabel}
         </h3>
-        <OperationProgress steps={steps} elapsed={elapsed} />
+        {status === "running" && <OperationProgress steps={steps} elapsed={elapsed} />}
+        {status === "complete" && entries.length > 0 && (
+          <div className="rounded-lg border bg-card divide-y text-sm">
+            {entries.map((e, i) => (
+              <div key={i} className="flex items-center gap-2 px-4 py-2">
+                {e.type === "skipped"
+                  ? <SkipForward className="h-4 w-4 text-muted-foreground" />
+                  : <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                <span>{e.label}</span>
+                <span className="ml-auto text-xs font-medium tabular-nums">{e.value}</span>
+              </div>
+            ))}
+            <div className="text-xs text-muted-foreground px-4 py-2">
+              {elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`}
+            </div>
+          </div>
+        )}
+        {status === "complete" && entries.length === 0 && (
+          <OperationProgress steps={steps} elapsed={elapsed} />
+        )}
         {status === "error" && error && (
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
             <p className="text-destructive font-medium">{error.detail}</p>
@@ -168,6 +199,12 @@ function SkillsImportTab() {
       steps={imp.steps}
       elapsed={imp.elapsed}
       error={imp.error}
+      result={imp.result}
+      summaryEntries={(r) => [
+        { label: t("skillsMcp.importedSkills"), value: (r.skills_imported as number) ?? 0 },
+        ...(r.skills_skipped ? [{ label: t("skillsMcp.skippedSkills"), value: r.skills_skipped as number, type: "skipped" as const }] : []),
+        { label: t("skillsMcp.grants"), value: (r.grants_applied as number) ?? 0 },
+      ]}
       reset={imp.reset}
       cancel={imp.cancel}
     />
@@ -192,6 +229,12 @@ function McpImportTab() {
       steps={imp.steps}
       elapsed={imp.elapsed}
       error={imp.error}
+      result={imp.result}
+      summaryEntries={(r) => [
+        { label: t("skillsMcp.importedServers"), value: (r.servers_imported as number) ?? 0 },
+        ...(r.servers_skipped ? [{ label: t("skillsMcp.skippedServers"), value: r.servers_skipped as number, type: "skipped" as const }] : []),
+        { label: t("skillsMcp.grants"), value: (r.grants_applied as number) ?? 0 },
+      ]}
       reset={imp.reset}
       cancel={imp.cancel}
     />

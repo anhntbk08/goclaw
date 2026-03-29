@@ -69,6 +69,7 @@ func (h *MCPHandler) handleMCPImport(w http.ResponseWriter, r *http.Request) {
 // MCPImportSummary is returned after a successful MCP import.
 type MCPImportSummary struct {
 	ServersImported int `json:"servers_imported"`
+	ServersSkipped  int `json:"servers_skipped"`
 	GrantsApplied   int `json:"grants_applied"`
 }
 
@@ -125,13 +126,17 @@ func (h *MCPHandler) doMCPImport(ctx context.Context, r io.Reader, userID string
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "server", Status: "running", Current: i + 1, Total: len(servers), Detail: srv.Name})
 		}
-		id, err := pg.ImportMCPServer(ctx, h.db, srv, userID)
+		id, created, err := pg.ImportMCPServer(ctx, h.db, srv, userID)
 		if err != nil {
 			slog.Warn("mcp.import: create server", "name", srv.Name, "error", err)
 			continue
 		}
 		serverNameToUUID[srv.Name] = id
-		summary.ServersImported++
+		if created {
+			summary.ServersImported++
+		} else {
+			summary.ServersSkipped++
+		}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "server", Status: "done", Detail: srv.Name})
 		}
