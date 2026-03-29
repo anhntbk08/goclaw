@@ -27,10 +27,12 @@ type AgentsHandler struct {
 	providerReg      *providers.Registry
 	db               *sql.DB
 	tracingStore     store.TracingStore
-	defaultWorkspace string            // default workspace path template (e.g. "~/.goclaw/workspace")
-	msgBus           *bus.MessageBus   // for cache invalidation events (nil = no events)
-	summoner         *AgentSummoner    // LLM-based agent setup (nil = disabled)
-	isOwner          func(string) bool // checks if user ID is a system owner (nil = no owners configured)
+	memoryStore      store.MemoryStore         // for import (nil = disabled)
+	kgStore          store.KnowledgeGraphStore // for import (nil = disabled)
+	defaultWorkspace string                   // default workspace path template (e.g. "~/.goclaw/workspace")
+	msgBus           *bus.MessageBus          // for cache invalidation events (nil = no events)
+	summoner         *AgentSummoner           // LLM-based agent setup (nil = disabled)
+	isOwner          func(string) bool        // checks if user ID is a system owner (nil = no owners configured)
 }
 
 // NewAgentsHandler creates a handler for agent management endpoints.
@@ -47,6 +49,12 @@ func NewAgentsHandler(agents store.AgentStore, providers store.ProviderStore, pr
 		summoner:         summoner,
 		isOwner:          isOwner,
 	}
+}
+
+// SetImportStores attaches optional stores needed for agent import.
+func (h *AgentsHandler) SetImportStores(mem store.MemoryStore, kg store.KnowledgeGraphStore) {
+	h.memoryStore = mem
+	h.kgStore = kg
 }
 
 // isOwnerUser checks if the given user ID is a system owner.
@@ -80,6 +88,14 @@ func (h *AgentsHandler) RegisterRoutes(mux *http.ServeMux) {
 	// Agent operations (admin+)
 	mux.HandleFunc("POST /v1/agents/{id}/regenerate", h.adminMiddleware(h.handleRegenerate))
 	mux.HandleFunc("POST /v1/agents/{id}/resummon", h.adminMiddleware(h.handleResummon))
+	// Export (agent owner or system owner)
+	mux.HandleFunc("GET /v1/agents/{id}/export/preview", h.authMiddleware(h.handleExportPreview))
+	mux.HandleFunc("GET /v1/agents/{id}/export", h.authMiddleware(h.handleExport))
+	mux.HandleFunc("GET /v1/agents/{id}/export/download/{token}", h.authMiddleware(h.handleExportDownload))
+	// Import (system owner or tenant admin)
+	mux.HandleFunc("POST /v1/agents/import/preview", h.authMiddleware(h.handleImportPreview))
+	mux.HandleFunc("POST /v1/agents/import", h.authMiddleware(h.handleImport))
+	mux.HandleFunc("POST /v1/agents/{id}/import", h.authMiddleware(h.handleMergeImport))
 	// Read-only (viewer+)
 	mux.HandleFunc("GET /v1/agents/{id}/codex-pool-activity", h.authMiddleware(h.handleCodexPoolActivity))
 	mux.HandleFunc("GET /v1/agents/{id}/instances", h.authMiddleware(h.handleListInstances))

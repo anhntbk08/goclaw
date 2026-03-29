@@ -26,6 +26,7 @@ func wireHTTP(stores *store.Stores, defaultWorkspace, dataDir, bundledSkillsDir 
 			summoner = httpapi.NewAgentSummoner(stores.Agents, providerReg, msgBus)
 		}
 		agentsH = httpapi.NewAgentsHandler(stores.Agents, stores.Providers, providerReg, stores.DB, stores.Tracing, defaultWorkspace, msgBus, summoner, isOwner)
+		agentsH.SetImportStores(stores.Memory, stores.KnowledgeGraph)
 	}
 
 	if stores != nil && stores.Skills != nil {
