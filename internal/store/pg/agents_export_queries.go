@@ -91,6 +91,10 @@ type ExportPreview struct {
 	ConfigPerms      int `json:"config_permissions"`
 	UserProfiles     int `json:"user_profiles"`
 	UserOverrides    int `json:"user_overrides"`
+	// Team section
+	TeamTasks    int `json:"team_tasks"`
+	TeamMembers  int `json:"team_members"`
+	AgentLinks   int `json:"agent_links"`
 }
 
 const exportBatchSize = 1000
@@ -322,6 +326,10 @@ func ExportPreviewCounts(ctx context.Context, db *sql.DB, agentID uuid.UUID) (*E
 	if err != nil {
 		return nil, err
 	}
+
+	// Team counts (separate query — agent may not be a lead)
+	p.TeamTasks, p.TeamMembers, p.AgentLinks, _ = ExportTeamPreviewCounts(ctx, db, agentID)
+
 	return &p, nil
 }
 

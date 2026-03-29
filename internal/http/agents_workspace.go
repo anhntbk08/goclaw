@@ -16,6 +16,12 @@ const maxWorkspaceFileSize = 50 << 20 // 50MB per file
 // exportWorkspaceFiles walks wsPath and adds each file to tw under the "workspace/" prefix.
 // Skips directories, hidden files (dot-prefixed), symlinks, and files exceeding maxWorkspaceFileSize.
 func (h *AgentsHandler) exportWorkspaceFiles(ctx context.Context, tw *tar.Writer, wsPath string, progressFn func(ProgressEvent)) (int, int64, error) {
+	return h.exportWorkspaceFilesWithPrefix(ctx, tw, wsPath, "workspace/", progressFn)
+}
+
+// exportWorkspaceFilesWithPrefix walks wsPath and adds each file to tw under tarPrefix.
+// Skips directories, hidden files (dot-prefixed), symlinks, and files exceeding maxWorkspaceFileSize.
+func (h *AgentsHandler) exportWorkspaceFilesWithPrefix(ctx context.Context, tw *tar.Writer, wsPath, tarPrefix string, progressFn func(ProgressEvent)) (int, int64, error) {
 	info, err := os.Stat(wsPath)
 	if err != nil || !info.IsDir() {
 		return 0, 0, nil // no workspace dir = nothing to export
@@ -62,7 +68,7 @@ func (h *AgentsHandler) exportWorkspaceFiles(ctx context.Context, tw *tar.Writer
 			return nil
 		}
 
-		tarPath := sanitizeName("workspace/" + filepath.ToSlash(rel))
+		tarPath := sanitizeName(tarPrefix + filepath.ToSlash(rel))
 		if err := addToTar(tw, tarPath, data); err != nil {
 			return err
 		}

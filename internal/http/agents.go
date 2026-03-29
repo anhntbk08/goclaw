@@ -30,6 +30,7 @@ type AgentsHandler struct {
 	memoryStore      store.MemoryStore         // for import (nil = disabled)
 	kgStore          store.KnowledgeGraphStore // for import (nil = disabled)
 	defaultWorkspace string                   // default workspace path template (e.g. "~/.goclaw/workspace")
+	dataDir          string                   // resolved data directory (e.g. "~/.goclaw/data") — for team workspace export
 	msgBus           *bus.MessageBus          // for cache invalidation events (nil = no events)
 	summoner         *AgentSummoner           // LLM-based agent setup (nil = disabled)
 	isOwner          func(string) bool        // checks if user ID is a system owner (nil = no owners configured)
@@ -49,6 +50,11 @@ func NewAgentsHandler(agents store.AgentStore, providers store.ProviderStore, pr
 		summoner:         summoner,
 		isOwner:          isOwner,
 	}
+}
+
+// SetDataDir sets the resolved data directory used for team workspace paths.
+func (h *AgentsHandler) SetDataDir(dataDir string) {
+	h.dataDir = dataDir
 }
 
 // SetImportStores attaches optional stores needed for agent import.

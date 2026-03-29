@@ -619,6 +619,13 @@ func (h *AgentsHandler) writeExportArchive(ctx context.Context, w io.Writer, ag 
 		manifest.Sections["workspace"] = map[string]any{"file_count": fileCount, "total_bytes": totalBytes}
 	}
 
+	// Section: team (agent is team lead)
+	if sections["team"] {
+		if err := h.exportTeamSection(ctx, tw, ag.ID, manifest, progressFn); err != nil {
+			slog.Warn("export: team section failed", "agent", ag.AgentKey, "error", err)
+		}
+	}
+
 	// Manifest last — has accurate final counts
 	manifestJSON, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -763,6 +770,11 @@ func parseExportSections(raw string) map[string]bool {
 // exportFileName builds the tar.gz filename for a given agent key.
 func exportFileName(agentKey string) string {
 	return fmt.Sprintf("agent-%s-%s.tar.gz", agentKey, time.Now().UTC().Format("20060102"))
+}
+
+// jsonIndent marshals v to indented JSON bytes.
+func jsonIndent(v any) ([]byte, error) {
+	return json.MarshalIndent(v, "", "  ")
 }
 
 // sanitizeName replaces characters that could cause path traversal in tar entries.

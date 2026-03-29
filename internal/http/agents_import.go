@@ -50,6 +50,14 @@ type importArchive struct {
 	userProfiles     []pg.UserProfileExport
 	userOverrides    []pg.UserOverrideExport
 	workspaceFiles   map[string][]byte // relative path → content
+	// Team section (Phase 4)
+	teamMeta         *pg.TeamExport
+	teamMembers      []pg.TeamMemberExport
+	teamTasks        []pg.TeamTaskExport
+	teamComments     []pg.TeamTaskCommentExport
+	teamEvents       []pg.TeamTaskEventExport
+	teamLinks        []pg.AgentLinkExport
+	teamWorkspace    map[string][]byte // relative path → content
 }
 
 type importContextFile struct {
@@ -88,6 +96,7 @@ func parseImportSections(raw string) map[string]bool {
 		"user_profiles":   true,
 		"user_overrides":  true,
 		"workspace":       true,
+		"team":            true,
 	}
 	if raw == "" {
 		return all
@@ -313,6 +322,7 @@ func (h *AgentsHandler) doImportNewAgent(ctx context.Context, r *http.Request, a
 		"user_profiles":   true,
 		"user_overrides":  true,
 		"workspace":       true,
+		"team":            true,
 	}
 	summary, err := h.doMergeImport(ctx, ag, arc, sections, progressFn)
 	if err != nil {
@@ -547,6 +557,13 @@ func (h *AgentsHandler) doMergeImport(ctx context.Context, ag *store.AgentData, 
 		}
 		if progressFn != nil {
 			progressFn(ProgressEvent{Phase: "workspace", Status: "done", Current: imported, Total: len(arc.workspaceFiles)})
+		}
+	}
+
+	// Section: team
+	if sections["team"] && arc.teamMeta != nil {
+		if err := h.importTeamSection(ctx, ag, arc, progressFn); err != nil {
+			slog.Warn("import: team section failed", "agent_id", ag.ID, "error", err)
 		}
 	}
 

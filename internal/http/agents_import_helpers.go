@@ -199,7 +199,7 @@ func nullStr(s *string) any {
 	return *s
 }
 
-// readNewSections parses Phase 2 archive entries into the importArchive.
+// readNewSections parses Phase 2–4 archive entries into the importArchive.
 func readNewSections(arc *importArchive, entries map[string][]byte) error {
 	if data, ok := entries["skills/grants.jsonl"]; ok {
 		items, err := parseJSONL[pg.SkillGrantExport](data)
@@ -243,5 +243,58 @@ func readNewSections(arc *importArchive, entries map[string][]byte) error {
 		}
 		arc.userOverrides = items
 	}
+
+	// Phase 4: team section
+	if data, ok := entries["team/team.json"]; ok {
+		var t pg.TeamExport
+		if err := json.Unmarshal(data, &t); err != nil {
+			return fmt.Errorf("parse team/team.json: %w", err)
+		}
+		arc.teamMeta = &t
+	}
+	if data, ok := entries["team/members.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamMemberExport](data)
+		if err != nil {
+			return fmt.Errorf("parse team/members.jsonl: %w", err)
+		}
+		arc.teamMembers = items
+	}
+	if data, ok := entries["team/tasks.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskExport](data)
+		if err != nil {
+			return fmt.Errorf("parse team/tasks.jsonl: %w", err)
+		}
+		arc.teamTasks = items
+	}
+	if data, ok := entries["team/comments.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskCommentExport](data)
+		if err != nil {
+			return fmt.Errorf("parse team/comments.jsonl: %w", err)
+		}
+		arc.teamComments = items
+	}
+	if data, ok := entries["team/events.jsonl"]; ok {
+		items, err := parseJSONL[pg.TeamTaskEventExport](data)
+		if err != nil {
+			return fmt.Errorf("parse team/events.jsonl: %w", err)
+		}
+		arc.teamEvents = items
+	}
+	if data, ok := entries["team/links.jsonl"]; ok {
+		items, err := parseJSONL[pg.AgentLinkExport](data)
+		if err != nil {
+			return fmt.Errorf("parse team/links.jsonl: %w", err)
+		}
+		arc.teamLinks = items
+	}
+
+	// Team workspace files: "team/workspace/<rel>" → arc.teamWorkspace
+	arc.teamWorkspace = make(map[string][]byte)
+	for name, data := range entries {
+		if rel := strings.TrimPrefix(name, "team/workspace/"); rel != name && rel != "" {
+			arc.teamWorkspace[rel] = data
+		}
+	}
+
 	return nil
 }
